@@ -2,7 +2,6 @@ import unittest
 from google.transit import gtfs_realtime_pb2
 
 import collections
-import itertools
 import numpy as np
 import pandas as pd
 
@@ -39,10 +38,6 @@ class TestDictify(unittest.TestCase):
         assert feed['entity'][5]['type'] == 'vehicle_update'
         assert set(feed['entity'][5]['vehicle'].keys()) == {'trip', 'stop_id', 'timestamp', 'current_stop_sequence',
                                                             'current_status'}
-
-
-class TestTripSort(unittest.TestCase):
-    pass
 
 
 class TestActionify(unittest.TestCase):
@@ -453,7 +448,6 @@ class TripLogUnaryTests(unittest.TestCase):
         This is an "arriving skip" because a skip will occur on a station that has either a departure or arrival
         defined, but not both.
         """
-        # TODO: Affirm that this is actually true.
         actions = [
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
                                             'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
@@ -709,7 +703,7 @@ class TripLogFinalizationTests(unittest.TestCase):
 
 class TripLogbookTests(unittest.TestCase):
     """
-    Tests for generating trip logbooks and merging them.
+    Smoke tests for generating trip logbooks and merging them.
     """
     def setUp(self):
         with open("./data/gtfs-20160512T0400Z", "rb") as f:
@@ -726,4 +720,10 @@ class TripLogbookTests(unittest.TestCase):
     def test_logbook(self):
         logbook = tripify.logify([self.log_0, self.log_1])
 
+        assert len(logbook) == 94
+
+    def test_logbook_merge(self):
+        logbook_0 = tripify.logify([self.log_0])
+        logbook_1 = tripify.logify([self.log_1])
+        logbook = tripify.merge_logbooks([logbook_0, logbook_1])
         assert len(logbook) == 94

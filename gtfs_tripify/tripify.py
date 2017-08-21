@@ -385,3 +385,122 @@ def logify(feeds):
             ret[trip_id] = _finish_trip(ret[trip_id], trip_terminated_time)
 
     return ret
+
+
+def merge_logbooks(logbooks):
+    """
+    Given a list of trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns their merger.
+    """
+    left = dict()
+    for right in logbooks:
+        left = _join_logbooks(left, right)
+    return left
+
+
+def _join_logbooks(left, right):
+    """
+    Given two trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns the merger of the two.
+    """
+    # Figure out what our jobs are by trip id key.
+    left_keys = set(left.keys())
+    right_keys = set(right.keys())
+
+    mutual_keys = left_keys.intersection(right_keys)
+    left_exclusive_keys = left_keys.difference(mutual_keys)
+    right_exclusive_keys = right_keys.difference(mutual_keys)
+
+    # Build out non-intersecting trips.
+    result = dict()
+    for key in left_exclusive_keys:
+        result[key] = left[key]
+    for key in right_exclusive_keys:
+        result[key] = right[key]
+
+    # Build out (join) intersecting trips.
+    for key in mutual_keys:
+        result[key] = _join_trip_logs(left[key], right[key])
+
+    return result
+
+
+def _join_trip_logs(left, right):
+    """
+    Two trip logs may contain information based on action logs, and GTFS-Realtime feed updates, which are
+    dis-contiguous in time. In other words, these logs reflect the same trip, but are based on different sets of
+    observations.
+
+    In such cases recovering a full(er) record requires merging these two logs together. Here we implement this
+    operation.
+
+    This method, the core of merge_trip_logbooks, is an operational necessity, as a day's worth of raw GTFS-R
+    messages at minutely resolution eats up 12 GB of RAM or more.
+    """
+    # Order the frames so that the earlier one is on the left.
+    left_start, right_start = left['latest_information_time'].min(), right['latest_information_time'].min()
+    if right_start < left_start:
+        left, right = right, left
+
+    # Get the combined synthetic station list.
+    stations = synthesize_route([list(left['stop_id'].values), list(right['stop_id'].values)])
+    right_stations = set(right['stop_id'].values)
+
+    # Combine the station information in last-precedent order.
+    l_i = r_i = 0
+    left_indices, right_indices = [], []
+
+    for station in stations:
+        if station not in right_stations:
+            left_indices.append(l_i)
+            l_i += 1
+
+    # Combine records.
+    join = pd.concat([left.iloc[left_indices], right]).reset_index(drop=True)
+
+    # Declaring an ordinal categorical column in the stop_id attribute makes `pandas` handle resorting internally and,
+    # hence, results in a significant speedup (over doing so ourselves).
+    join['stop_id'] = pd.Categorical(join['stop_id'], stations, ordered=True)
+
+    # Update records for stations before the first station in the right trip log that the train is EN_ROUTE_TO or
+    # STOPPED_OR_SKIPPED.
+    swap_station = right.iloc[0]['stop_id']
+    swap_index = next(i for i, station in enumerate(stations) if station == swap_station)
+    swap_space = join[:swap_index]
+    where_update = swap_space[swap_space['action'] == 'EN_ROUTE_TO'].index.values
+
+    join.loc[where_update, 'action'] = 'STOPPED_OR_SKIPPED'
+    join.loc[where_update, 'maximum_time'] = right.loc[0, 'latest_information_time']
+    join.loc[swap_index, 'minimum_time'] = left.loc[0, 'minimum_time']
+
+    # Hard-case the columns to float so as to avoid weird typing issues that keep coming up.
+    join.loc[:, ['minimum_time', 'maximum_time']] = join.loc[:, ['minimum_time', 'maximum_time']].astype(float)
+
+    # The second trip update may on the first index contain incomplete minimum time information due to not having a
+    # reference to a previous trip update included in that trip log's generative action log set. There are a number
+    # of ways in which this can occur, but the end fact of the matter is that between the last entry in the first
+    # trip log and the first entry in the second trip log, we may have one of three different inconsistencies:
+    #
+    # 1. The prior states that the train stopped at (or skipped) the last station in that log at some known time,
+    #    but the minimum time of the first stop or skip in the posterior log is a NaN, due to lack of prior information.
+    # 2. The prior states that the train stopped at (or skipped) the last station in that log at some known minimum
+    #    time, but the posterior log first entry minimum time is even earlier.
+    # 3. The prior states that the train stopped at (or skipped) the last station in that log at some known maximum
+    #    time, but the posterior log first entry minimum time is even earlier.
+    #
+    # The lines below handle each one of these possible inconsistencies in turn.
+    join.loc[:, 'minimum_time'] = join.loc[:, 'minimum_time'].fillna(method='ffill')
+    join.loc[1:, 'minimum_time'] = np.maximum.accumulate(join.loc[1:, 'minimum_time'].values)
+
+    if len(join) > 1:
+        join.loc[len(left) -1, 'minimum_time'] = np.maximum(np.nan_to_num(join.loc[len(left) - 2, 'maximum_time']),
+                                                            join.loc[len(left) - 1, 'minimum_time'])
+
+    # Again at the location of the join, we may also get an incomplete `maximum_time` entry, for the same reason. In
+    # this case we will take the `maximum_time` of the following entry. However, note that we are *losing
+    # information* in this case, as we could technically resolve this time to a more accurate one, given the full
+    # list of information times. However, we do not have that information at this time in the processing sequence.
+    # This is an unfortunate but not particularly important, all things considered, technical shortcoming of the way
+    # we chose to code things.
+
+    join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
+
+    return join
