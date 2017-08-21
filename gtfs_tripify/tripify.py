@@ -3,6 +3,7 @@ import itertools
 from collections import defaultdict
 import pandas as pd
 from gtfs_tripify.utils import synthesize_route
+import warnings
 
 
 def dictify(feed):
@@ -93,6 +94,9 @@ def dictify(feed):
             }
             feed['entity'].append(message)
 
+    # Correct and warn about feed errors.
+    feed = correct(feed)
+
     return feed
 
 
@@ -101,7 +105,31 @@ def correct(feed):
     Verifies that the inputted dictified feed has the expected schema. Raises warnings wherever issues are found,
     and attempts to cure them.
     """
-    # TODO
+    # Capture and throw away vehicle updates that do not also have trip updates.
+    vehicle_update_ids = {m['vehicle']['trip']['trip_id'] for m in feed['entity'] if m['type'] == 'vehicle_update'}
+    trip_update_ids = {m['trip_update']['trip']['trip_id'] for m in feed['entity'] if m['type'] == 'trip_update'}
+    trip_update_only_ids = vehicle_update_ids.difference(trip_update_ids)
+
+    if len(trip_update_only_ids) > 0:
+        warnings.warn("The trips with IDs {0} are provided vehicle updates but not trip updates in the GTFS-R feed "
+                      "for {1}. These invalid trips were removed from the feed during pre-processing.".format(
+            trip_update_only_ids, feed['header']['timestamp'])
+        )
+        feed['entity'] = [m for m in feed['entity'] if (m['type'] != 'vehicle_update' or
+                                                        m['vehicle']['trip']['trip_id'] not in trip_update_only_ids)]
+
+    # Capture and throw away messages which have a null (empty string, '') trip id.
+    nonalert_ids = vehicle_update_ids | trip_update_ids
+    if '' in nonalert_ids:
+        warnings.warn("Some of the messages in the GTFS-R feed for {0} have a null trip id. These invalid messages "
+                      "were removed from the feed during pre-processing.".format(
+            trip_update_only_ids, feed['header']['timestamp'])
+        )
+        feed['entity'] = [m for m in feed['entity'] if ((m['type'] == 'vehicle_update' and
+                                                         m['vehicle']['trip']['trip_id'] != "") or
+                                                        (m['type'] == 'trip_update') and
+                                                         m['trip_update']['trip']['trip_id'] != "")]
+
     return feed
 
 
@@ -186,9 +214,8 @@ def actionify(trip_message, vehicle_message, timestamp):
             log_arrival(stop_id, arrival_time)
             log_departure(stop_id, departure_time)
 
-        # Intermediate station, one of arrival or departure is null.
-        elif ((not first_station and
-               not last_station and
+        # Not the last station, one of arrival or departure is null.
+        elif ((not last_station and
                (pd.isnull(arrival_time) or pd.isnull(departure_time)))):
             log_skip(stop_id, departure_time) if pd.isnull(arrival_time) else log_skip(stop_id, arrival_time)
 

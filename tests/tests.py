@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from google.transit import gtfs_realtime_pb2
 
 import collections
@@ -6,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import sys; sys.path.append("../")
-from gtfs_tripify import tripify
+import gtfs_tripify as gt
 
 
 class TestDictify(unittest.TestCase):
@@ -18,7 +19,7 @@ class TestDictify(unittest.TestCase):
         self.gtfs = gtfs
 
     def test_dictify(self):
-        feed = tripify.dictify(self.gtfs)
+        feed = gt.dictify(self.gtfs)
         assert set(feed) == {'entity', 'header'}
         assert feed['header'].keys() == {'timestamp', 'gtfs_realtime_version'}
         assert isinstance(feed['header']['timestamp'], int)
@@ -41,9 +42,6 @@ class TestDictify(unittest.TestCase):
 
 
 class TestActionify(unittest.TestCase):
-    def setUp(self):
-        pass
-
     def test_case_1(self):
         """
         The train is STOPPED_AT a station somewhere along the route. The train is not expected to skip any of the
@@ -80,7 +78,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -120,7 +118,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
                                        'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
 
@@ -160,7 +158,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
                                        'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
 
@@ -188,9 +186,117 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, None, timestamp)
+        log = gt.actionify(trip_message, None, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
                                        'EXPECTED_TO_ARRIVE_AT']
+
+    def test_case_5(self):
+        """
+        The train is currently INCOMING_AT the final stop on its route.
+        """
+        trip_message = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': '000650_1..S02R'},
+                'stop_time_update': [
+                    {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
+                ]
+            }
+        }
+        vehicle_message = {
+            'id': '000006',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'INCOMING_AT',
+                'current_stop_sequence': 34,
+                'stop_id': '140S',
+                'timestamp': 1463025417,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160511',
+                    'trip_id': '137100_1..N02X017'
+                }
+            }
+        }
+        timestamp = 1463025417
+
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
+
+    def test_case_6(self):
+        """
+        The train is currently IN_TRANSIT_TO the final stop on its route.
+        """
+        trip_message = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': '000650_1..S02R'},
+                'stop_time_update': [
+                    {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
+                ]
+            }
+        }
+        vehicle_message = {
+            'id': '000006',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'IN_TRANSIT_TO',
+                'current_stop_sequence': 34,
+                'stop_id': '140S',
+                'timestamp': 1463025417,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160511',
+                    'trip_id': '137100_1..N02X017'
+                }
+            }
+        }
+        timestamp = 1463025417
+
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
+
+    def test_case_7(self):
+        """
+        The train is currently STOPPED_AT the final stop on its route.
+        """
+        trip_message = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': '000650_1..S02R'},
+                'stop_time_update': [
+                    {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
+                ]
+            }
+        }
+        vehicle_message = {
+            'id': '000006',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'STOPPED_AT',
+                'current_stop_sequence': 34,
+                'stop_id': '140S',
+                'timestamp': 1463025417,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160511',
+                    'trip_id': '137100_1..N02X017'
+                }
+            }
+        }
+        timestamp = 1463025417
+
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        assert list(log['action']) == ['STOPPED_AT']
 
     def test_case_8(self):
         """
@@ -234,7 +340,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -270,14 +376,15 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
                                        'EXPECTED_TO_ARRIVE_AT']
 
-    def test_case_5(self):
+    def test_case_9(self):
         """
-        The train is currently INCOMING_AT the final stop on its route.
+        The train is expected to skip the first stop along its route.
         """
+        # First subcase.
         trip_message = {
             'id': '000001',
             'type': 'trip_update',
@@ -286,6 +393,7 @@ class TestActionify(unittest.TestCase):
                          'start_date': '20160512',
                          'trip_id': '000650_1..S02R'},
                 'stop_time_update': [
+                    {'arrival': np.nan, 'departure': 1463026080, 'stop_id': '103S'},
                     {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
                 ]
             }
@@ -296,7 +404,7 @@ class TestActionify(unittest.TestCase):
             'vehicle': {
                 'current_status': 'INCOMING_AT',
                 'current_stop_sequence': 34,
-                'stop_id': '140S',
+                'stop_id': '103S',
                 'timestamp': 1463025417,
                 'trip': {
                     'route_id': '1',
@@ -307,13 +415,10 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        assert list(log['action']) == ['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT']
 
-    def test_case_6(self):
-        """
-        The train is currently IN_TRANSIT_TO the final stop on its route.
-        """
+        # Second subcase.
         trip_message = {
             'id': '000001',
             'type': 'trip_update',
@@ -322,6 +427,7 @@ class TestActionify(unittest.TestCase):
                          'start_date': '20160512',
                          'trip_id': '000650_1..S02R'},
                 'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'},
                     {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
                 ]
             }
@@ -330,9 +436,9 @@ class TestActionify(unittest.TestCase):
             'id': '000006',
             'type': 'vehicle_update',
             'vehicle': {
-                'current_status': 'IN_TRANSIT_TO',
+                'current_status': 'INCOMING_AT',
                 'current_stop_sequence': 34,
-                'stop_id': '140S',
+                'stop_id': '103S',
                 'timestamp': 1463025417,
                 'trip': {
                     'route_id': '1',
@@ -343,12 +449,15 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
+        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        assert list(log['action']) == ['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT']
 
-    def test_case_7(self):
+
+class TestCorrectFeed(unittest.TestCase):
+    def test_vehicle_update_only(self):
         """
-        The train is currently STOPPED_AT the final stop on its route.
+        Assert that we raise a warning and remove the entry with `correct` when a trip only have a vehicle warning
+        in the feed.
         """
         trip_message = {
             'id': '000001',
@@ -356,8 +465,9 @@ class TestActionify(unittest.TestCase):
             'trip_update': {
                 'trip': {'route_id': '1',
                          'start_date': '20160512',
-                         'trip_id': '000650_1..S02R'},
+                         'trip_id': ''},
                 'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'},
                     {'arrival': 1463029500, 'departure': np.nan, 'stop_id': '140S'}
                 ]
             }
@@ -366,9 +476,40 @@ class TestActionify(unittest.TestCase):
             'id': '000006',
             'type': 'vehicle_update',
             'vehicle': {
-                'current_status': 'STOPPED_AT',
+                'current_status': 'INCOMING_AT',
                 'current_stop_sequence': 34,
-                'stop_id': '140S',
+                'stop_id': '103S',
+                'timestamp': 1463025417,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160511',
+                    'trip_id': ''
+                }
+            }
+        }
+        feed = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025417},
+            'entity': [trip_message, vehicle_message]
+        }
+
+        # noinspection PyUnresolvedReferences
+        with pytest.warns(UserWarning):
+            feed = gt.correct(feed)
+
+        assert len(feed['entity']) == 0
+
+    def test_empty_trip_id(self):
+        """
+        Assert that we raise a warning and remove the entry with `correct` when a feed entity has a null trip_id.
+        """
+        vehicle_message = {
+            'id': '',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'INCOMING_AT',
+                'current_stop_sequence': 34,
+                'stop_id': '103S',
                 'timestamp': 1463025417,
                 'trip': {
                     'route_id': '1',
@@ -377,10 +518,34 @@ class TestActionify(unittest.TestCase):
                 }
             }
         }
-        timestamp = 1463025417
+        feed = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025417},
+            'entity': [vehicle_message]
+        }
 
-        log = tripify.actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['STOPPED_AT']
+        # noinspection PyUnresolvedReferences
+        with pytest.warns(UserWarning):
+            feed = gt.correct(feed)
+
+        assert len(feed['entity']) == 0
+
+    def test_empty_trip_id_2(self):
+        feed = {'header': {'timestamp': 1},
+                'entity': [{'id': '000022',
+                            'type': 'vehicle_update',
+                            'vehicle': {'current_stop_sequence': 0,
+                                        'stop_id': '',
+                                        'current_status': 'IN_TRANSIT_TO',
+                                        'timestamp': 0,
+                                        'trip': {'route_id': '',
+                                                 'trip_id': '',
+                                                 'start_date': ''}}}]}
+        # noinspection PyUnresolvedReferences
+        with pytest.warns(UserWarning):
+            feed = gt.correct(feed)
+
+        assert len(feed['entity']) == 0
 
 
 def create_mock_action_log(actions=None, stops=None, information_time=0):
@@ -405,7 +570,7 @@ class TripLogUnaryTests(unittest.TestCase):
         An action log with just a stoppage ought to report as a trip log with just a stoppage.
         """
         actions = [create_mock_action_log(['STOPPED_AT'])]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 1
         assert result.iloc[0].action == 'STOPPED_AT'
@@ -419,7 +584,7 @@ class TripLogUnaryTests(unittest.TestCase):
         check the docstring there).
         """
         actions = [create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT'])]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 1
         assert result.iloc[0].action == 'EN_ROUTE_TO'
@@ -431,7 +596,7 @@ class TripLogUnaryTests(unittest.TestCase):
         """
         An action log with a single arrival ought to report a single EN_ROUTE_TO in the trip log.
         """
-        result = tripify.tripify([
+        result = gt.tripify([
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT'])
         ])
         assert len(result) == 1
@@ -452,7 +617,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
                                             'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
         ]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 3
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -471,7 +636,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART', 'EXPECTED_TO_DEPART',
                                             'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
         ]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 3
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -488,7 +653,7 @@ class TripLogUnaryTests(unittest.TestCase):
                                             'EXPECTED_TO_ARRIVE_AT'],
                                    stops=['999X', '999X', '998X'])
         ]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -504,7 +669,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT'],
                                    stops=['999X', '998X'])
         ]
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_AT', 'EN_ROUTE_TO']
@@ -533,7 +698,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.tail(1).set_value(1, 'information_time', 1)
         actions = [first, second]
 
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['EN_ROUTE_TO']
@@ -553,7 +718,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.tail(1).set_value(1, 'information_time', 1)
         actions = [first, second]
 
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_AT']
@@ -576,7 +741,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.tail(1).set_value(3, 'information_time', 1)
         actions = [first, second]
 
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -598,7 +763,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.tail(1).set_value(2, 'information_time', 1)
         actions = [first, second]
 
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -620,7 +785,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.tail(1).set_value(2, 'information_time', 1)
         actions = [first, second]
 
-        result = tripify.tripify(actions)
+        result = gt.tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'STOPPED_AT']
@@ -642,7 +807,7 @@ class TripLogReroutingTests(unittest.TestCase):
         first = base.head(1)
         second = base.tail(1).set_value(1, 'information_time', 1)
 
-        result = tripify.tripify([first, second])
+        result = gt.tripify([first, second])
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -668,8 +833,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         Finalization should do nothing to trip logs that are already complete.
         """
         base = create_mock_action_log(actions=['STOPPED_AT'], stops=['999X'])
-        trip = tripify.tripify([base])
-        result = tripify._finish_trip(trip, np.nan)
+        result = gt.tripify([base], finished=True, finish_information_time=np.nan)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_AT']
@@ -679,8 +843,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         Finalization should cap off trips that are still EN_ROUTE.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT'], stops=['999X'])
-        trip = tripify.tripify([base])
-        result = tripify._finish_trip(trip, np.nan)
+        result = gt.tripify([base], finished=True, finish_information_time=np.nan)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED']
@@ -692,9 +855,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         base = create_mock_action_log(actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X'])
         first = base.head(1)
         second = base.tail(1)
-
-        trip = tripify.tripify([first, second])
-        result = tripify._finish_trip(trip, 42)
+        result = gt.tripify([first, second], finished=True, finish_information_time=42)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'STOPPED_OR_SKIPPED']
@@ -714,16 +875,16 @@ class TripLogbookTests(unittest.TestCase):
             gtfs_1 = gtfs_realtime_pb2.FeedMessage()
             gtfs_1.ParseFromString(f.read())
 
-        self.log_0 = tripify.dictify(gtfs_0)
-        self.log_1 = tripify.dictify(gtfs_1)
+        self.log_0 = gt.dictify(gtfs_0)
+        self.log_1 = gt.dictify(gtfs_1)
 
     def test_logbook(self):
-        logbook = tripify.logify([self.log_0, self.log_1])
+        logbook = gt.logify([self.log_0, self.log_1])
 
         assert len(logbook) == 94
 
     def test_logbook_merge(self):
-        logbook_0 = tripify.logify([self.log_0])
-        logbook_1 = tripify.logify([self.log_1])
-        logbook = tripify.merge_logbooks([logbook_0, logbook_1])
+        logbook_0 = gt.logify([self.log_0])
+        logbook_1 = gt.logify([self.log_1])
+        logbook = gt.merge_logbooks([logbook_0, logbook_1])
         assert len(logbook) == 94
