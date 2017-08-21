@@ -105,7 +105,7 @@ def correct(feed):
     return feed
 
 
-def tripsort(feed):
+def tripsort(feed, include_alerts=False):
     """
     Sorts the messages a set of dictified feeds into a hash table.
     """
@@ -119,6 +119,8 @@ def tripsort(feed):
             return [message['vehicle']['trip']['trip_id']]
         else:  # alert
             return [entity['trip_id'] for entity in message['alert']['informed_entity']]
+
+    messages = messages if include_alerts else [m for m in messages if m['type'] != 'alert']
 
     for message in messages:
         for trip_id in get_trip_ids(message):
@@ -217,34 +219,33 @@ def _parse_message_list_into_action_log(messages, timestamp):
     nonalerts = [message for message in messages if message['type'] != 'alert']
 
     for i in range(0, len(nonalerts)):
-        message = messages[i]
+        trip_update = messages[i]
 
-        if message['type'] == 'vehicle_update':
+        # Selectively loop through trip updates.
+        if trip_update['type'] == 'vehicle_update':
             pass
+
+        # If the entry is a trip update, find the associated vehicle update, if it exists, and pass that to the list.
         else:
-            # Find the associated vehicle update.
-            veh_upd = False if (i == len(messages) - 1) else (messages[i + 1]['type'] == 'vehicle_update')
+            has_vehicle_update = False if (i == len(messages) - 1) else (messages[i + 1]['type'] == 'vehicle_update')
+            vehicle_update = messages[i + 1] if has_vehicle_update else None
 
-            # Pass reading the actions into a helper function.
-            if veh_upd:
-                actions = actionify(message, messages[i + 1], timestamp)
-            else:
-                actions = actionify(message, None, timestamp)
-
+            actions = actionify(trip_update, vehicle_update, timestamp)
             actions_list.append(actions)
 
     return pd.concat(actions_list)
 
 
-def tripify(tripwise_action_logs):
+def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     """
     Given a list of action logs associated with a particular trip, returns the result of their merger: a single trip
     log.
 
-    Note that this trip log is not terminated. If the action logs do not provide complete information about this
-    trip's stops (for example, if the train stopped at its last stop and was subsequently removed from the record in
-    the time between updates) then you will need to "finish" the trip information off yourself, using the
-    `finish_trip` method. This is done for you in `parse_feeds_into_trip_logs`.
+    By default, this trip is left unterminated. To terminate the trip (replacing any remaining stops to be made with
+    the appropriate information), set the `finished` flag to `True` and provide a `finish_information_time`,
+    which should correspond with the time at which you learn that the trip has ended. This must be provided
+    separately because when a trip ends, it merely disappears from the GTFS-R feed, The information time of the
+    first GTFS-R feed *not* containing this trip, an externality, is the relevant piece of information.
     """
     all_data = pd.concat(tripwise_action_logs)
 
@@ -258,10 +259,8 @@ def tripify(tripwise_action_logs):
 
     # To understand what went on during a trip, we only need to have a list of touched stops, the rows corresponding
     # with the first action in each observation's action sublog, and the time that has passed in between the sublog
-    # entries.
-    #
-    # We can extract all of the stop information that we need by considering information pertaining to these entries,
-    # in order.
+    # entries. We can extract all of the stop information that we need by considering information pertaining to
+    # these entries, in order.
     station_lists = []
     for log in tripwise_action_logs:
         station_lists.append(list(log['stop_id'].unique()))
@@ -321,6 +320,11 @@ def tripify(tripwise_action_logs):
 
     trip = pd.DataFrame(lines, columns=['trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
                                         'latest_information_time'])
+
+    if finished:
+        assert finish_information_time
+        trip = _finish_trip(trip, finish_information_time)
+
     return trip
 
 
@@ -336,13 +340,11 @@ def _finish_trip(trip_log, timestamp):
     return trip_log
 
 
-def logify(feeds, timestamps):
+def logify(feeds):
     """
-    Given a list of feeds and a list of information dates, returns a hash table of trip logs associated with each
-    trip mentioned in those feeds.
-
-    The ultimate method for which all of the above was developed.
+    Given a list of feeds, returns a hash table of trip logs associated with each trip mentioned in those feeds.
     """
+    timestamps = [feed['header']['timestamp'] for feed in feeds]
     message_tables = [tripsort(feed) for feed in feeds]
     trip_ids = set(itertools.chain(*[table.keys() for table in message_tables]))
 
@@ -374,6 +376,7 @@ def logify(feeds, timestamps):
 
             action_log = _parse_message_list_into_action_log(table[trip_id], timestamps[i])
             actions_logs.append(action_log)
+
         trip_log = tripify(actions_logs)
         ret[trip_id] = trip_log
 

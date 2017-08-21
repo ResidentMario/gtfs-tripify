@@ -705,3 +705,25 @@ class TripLogFinalizationTests(unittest.TestCase):
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'STOPPED_OR_SKIPPED']
         assert list(result['maximum_time'].astype(int).values) == [42, 42]
+
+
+class TripLogbookTests(unittest.TestCase):
+    """
+    Tests for generating trip logbooks and merging them.
+    """
+    def setUp(self):
+        with open("./data/gtfs-20160512T0400Z", "rb") as f:
+            gtfs_0 = gtfs_realtime_pb2.FeedMessage()
+            gtfs_0.ParseFromString(f.read())
+
+        with open("./data/gtfs-20160512T0401Z", "rb") as f:
+            gtfs_1 = gtfs_realtime_pb2.FeedMessage()
+            gtfs_1.ParseFromString(f.read())
+
+        self.log_0 = tripify.dictify(gtfs_0)
+        self.log_1 = tripify.dictify(gtfs_1)
+
+    def test_logbook(self):
+        logbook = tripify.logify([self.log_0, self.log_1])
+
+        assert len(logbook) == 94
