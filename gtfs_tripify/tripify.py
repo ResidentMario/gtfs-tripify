@@ -133,9 +133,9 @@ def correct(feed):
     return feed
 
 
-def tripsort(feed, include_alerts=False):
+def _tripsort(feed, include_alerts=False):
     """
-    Sorts the messages a set of dictified feeds into a hash table.
+    Sorts the messages a set of dictified feeds into a hash table. Does not handle collisions!
     """
     messages = feed['entity']
     sort = defaultdict(list)
@@ -372,7 +372,17 @@ def logify(feeds):
     Given a list of feeds, returns a hash table of trip logs associated with each trip mentioned in those feeds.
     """
     timestamps = [feed['header']['timestamp'] for feed in feeds]
-    message_tables = [tripsort(feed) for feed in feeds]
+
+    # The trip IDs that are assigned by the MTA are unique during their lifetime, but get recycled over the course of
+    # the day. So for example if a trip is assigned the trip ID `000000_L..S`, and that trip ends, that trip ID is
+    # immediately available for reassignment to the next L train to be added to the schedule. Indeed, it may be the
+    # first ID *in line* for reassignment!
+    #
+    # We have to perform our own heuristic to bifurcate non-contiguous trips. The marker that we will use is the trip
+    # messages appearing non-contiguously. This is *not* a complete solution, as it is technically possible for a
+    # trip id to be released and reused inside of the "update window". However, it's difficult to do better. We will
+    # see whether or not this works well enough though.
+    message_tables = [_tripsort(feed) for feed in feeds]
     trip_ids = set(itertools.chain(*[table.keys() for table in message_tables]))
 
     ret = dict()
@@ -531,3 +541,6 @@ def _join_trip_logs(left, right):
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
     return join
+
+# TODO: Refactor tripsort (and especially its usage within logify) to work on a list of feeds instead.
+# This is necessary in order to fix the non-unique ID problem.
