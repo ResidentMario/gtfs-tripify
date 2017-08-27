@@ -157,6 +157,44 @@ def _tripsort(feed, include_alerts=False):
     return sort
 
 
+def _feedsort(feeds, include_alerts=False):
+    """
+    Sorts the messages in a timely list of dictified feeds into a list of trip-id-to-message hash tables. This
+    method handles the Trip ID collisions that occur when a trip ID is recycled within the time span of the feed.
+    """
+    if include_alerts:
+        raise NotImplementedError("Processing alert messages has not been implemented yet.")
+
+    if len(feeds) == 0:
+        return []
+
+    message_tables = [_tripsort(feed, include_alerts=False) for feed in feeds]
+    trip_ids = list(set(itertools.chain(*[table.keys() for table in message_tables])))
+
+    # x dimension is categorical trip_id, y dimension is time (feed sequence number).
+    containment_matrix = np.concatenate([[np.in1d(trip_ids, list(table.keys()))] for table in message_tables], axis=0)
+
+    for i in range(len(trip_ids)):
+        n = 0
+        trip_id, strip = trip_ids[i], containment_matrix[:, i]
+        new_ids = []
+
+        for contains in strip:
+            if contains:
+                new_ids.append("{0}_{1}".format(trip_id, n))
+            else:
+                new_ids.append(None)
+                n += 1
+
+        for i, table in enumerate(message_tables):
+            if new_ids[i] is not None:
+                table[new_ids[i]] = table.pop(trip_id)
+            else:
+                continue
+
+    return message_tables
+
+
 def actionify(trip_message, vehicle_message, timestamp):
     """
     Parses the trip update and vehicle update messages (if there is one; may be None) for a particular trip into an
@@ -274,74 +312,79 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     separately because when a trip ends, it merely disappears from the GTFS-R feed, The information time of the
     first GTFS-R feed *not* containing this trip, an externality, is the relevant piece of information.
     """
+
+    # Capture the first row of information for each information time. `key_data` may contain skipped stops! We have
+    # to iterate through `remaining_stops` and `key_data` simultaneously to get what we want.
     all_data = pd.concat(tripwise_action_logs)
+    key_data = (all_data
+                .groupby('information_time')
+                .first()
+                .reset_index())
 
-    key_data = all_data.groupby('information_time').first().reset_index()
-    current_information_time = None
+    # Get the complete (synthetic) stop list.
+    stops = synthesize_route([list(log['stop_id'].unique()) for log in tripwise_action_logs])
 
-    # The following bookkeeping is used to assign the *next* information time in the case of a STOPPED_AT.
-    information_times = sorted(list(set(all_data['information_time'])))
-    next_information_time_index = 1
-    next_information_time = information_times[1] if len(information_times) > 1 else np.nan
+    # Get the complete list of information times.
+    information_times = [np.nan] + list(all_data['information_time'].unique()) + [np.nan]
 
-    # To understand what went on during a trip, we only need to have a list of touched stops, the rows corresponding
-    # with the first action in each observation's action sublog, and the time that has passed in between the sublog
-    # entries. We can extract all of the stop information that we need by considering information pertaining to
-    # these entries, in order.
-    station_lists = []
-    for log in tripwise_action_logs:
-        station_lists.append(list(log['stop_id'].unique()))
-    remaining_stops = synthesize_route(station_lists)
-
-    # Base is trip_id, route_id.
-    base = np.array([all_data.iloc[0]['trip_id'], all_data.iloc[0]['route_id']])
-
+    # Init lines, where we will concat our final result, and the base (trip_id, route_id) to be written to it.
+    base = np.array([key_data.iloc[0]['trip_id'], key_data.iloc[0]['route_id']])
     lines = []
 
-    for ind, row in key_data.iterrows():
+    # Key data index pointers.
+    kd_i = 0  # key data index
+    it_i = 1  # information time index
+    st_i = 0  # synthetic stop list index
 
-        previous_information_time = current_information_time if current_information_time is not None else np.nan
-        current_information_time = row['information_time']
+    # Book-keep stops that we have already accounted for.
+    passed_stops = set()
+    most_recent_passed_stop = None
 
-        # Do bookkeeping to keep track of the next information time for use by STOPPED_AT records.
-        if current_information_time == next_information_time:
-            next_information_time_index += 1
-            try:
-                next_information_time = information_times[next_information_time_index]
-            except IndexError:  # end of the record
-                next_information_time = np.nan
+    while kd_i < len(key_data) and st_i < len(stops):
+        # import pdb; pdb.set_trace()
+        next_stop = stops[st_i]
+        next_record = key_data.iloc[kd_i]
 
-        current_stop = row['stop_id']
+        if next_record['stop_id'] != next_stop and next_record['stop_id'] not in passed_stops:
+            skipped_stop = np.append(base.copy(), np.array(
+                            ['STOPPED_OR_SKIPPED', information_times[it_i - 1], information_times[it_i],
+                             next_stop, information_times[it_i]]
+                        ))
+            lines.append(skipped_stop)
+            passed_stops.add(next_stop)
+            most_recent_passed_stop = next_stop
 
-        i_del = 0
-        for remaining_stop in remaining_stops:
-            if remaining_stop != current_stop:
-                # action, minimum_time, maximum_time, stop_id, latest_information_time
-                skipped_stop = np.append(base.copy(), np.array(
-                    ['STOPPED_OR_SKIPPED', previous_information_time, current_information_time,
-                     remaining_stop, current_information_time]
-                ))
-                lines.append(skipped_stop)
-                i_del += 1
-            else:
-                if row['action'] == 'STOPPED_AT':
-                    stopped_stop = np.append(base.copy(), np.array(
-                        ['STOPPED_AT', previous_information_time, next_information_time,
-                         row['stop_id'], current_information_time]
-                    ))
-                    lines.append(stopped_stop)
-                    i_del += 1
-                    break
-                else:
-                    # We have learned nothing.
-                    break
-        remaining_stops = remaining_stops[i_del:]
+            st_i += 1
+
+        elif next_record['stop_id'] != next_stop and next_record['stop_id'] == most_recent_passed_stop:
+            lines[-1][4] = information_times[it_i + 1]
+            it_i += 1
+            kd_i += 1
+
+        elif next_record['stop_id'] == next_stop and next_record['action'] == 'STOPPED_AT':
+            stopped_stop = np.append(base.copy(), np.array(
+                ['STOPPED_AT', information_times[it_i - 1], information_times[it_i + 1],
+                next_stop, information_times[it_i]]
+            ))
+            lines.append(stopped_stop)
+            passed_stops.add(next_stop)
+            most_recent_passed_stop = next_stop
+
+            it_i += 1
+            kd_i += 1
+            st_i += 1
+
+        else:  # next_record['stop_id'] == next_stop and next_record['action'] == 'EXPECTED_TO_ARRIVE_AT':
+            it_i += 1
+            kd_i += 1
 
     # Any stops left over we haven't arrived at yet.
-    for remaining_stop in remaining_stops:
+    latest_information_time = information_times[-2]
+
+    for remaining_stop in [stop for stop in stops if stop not in passed_stops]:
         future_stop = np.append(base.copy(), np.array(
-            ['EN_ROUTE_TO', current_information_time, np.nan,
-             remaining_stop, current_information_time]
+            ['EN_ROUTE_TO', latest_information_time, np.nan,
+             remaining_stop, latest_information_time]
         ))
         lines.append(future_stop)
 
@@ -382,7 +425,7 @@ def logify(feeds):
     # messages appearing non-contiguously. This is *not* a complete solution, as it is technically possible for a
     # trip id to be released and reused inside of the "update window". However, it's difficult to do better. We will
     # see whether or not this works well enough though.
-    message_tables = [_tripsort(feed) for feed in feeds]
+    message_tables = _feedsort(feeds)
     trip_ids = set(itertools.chain(*[table.keys() for table in message_tables]))
 
     ret = dict()
@@ -394,6 +437,7 @@ def logify(feeds):
         trip_terminated_time = None
 
         for i, table in enumerate(message_tables):
+
             # Is the trip present in this table at all?
             if not table[trip_id]:
                 # If the trip hasn't been planned yet, and will simply appear in a later trip update, do nothing.
@@ -541,6 +585,3 @@ def _join_trip_logs(left, right):
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
     return join
-
-# TODO: Refactor tripsort (and especially its usage within logify) to work on a list of feeds instead.
-# This is necessary in order to fix the non-unique ID problem.
