@@ -1,3 +1,6 @@
+import datetime
+
+
 def synthesize_route(station_lists):
     """
     Given a list of station lists (that is: a list of lists, where each sublist consists of the series of stations
@@ -38,3 +41,43 @@ def _synthesize_station_lists(left, right):
         #  train probably cancelled those stations, but it may have stopped there in the meantime also. Add all
         # stations in the first list and all stations in the second list together.
         return left + right
+
+
+def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31', raw=False):
+    """
+    Returns archived GTFS data for a particular time_assigned.
+    Parameters
+    ----------
+    feed: {'gtfs', 'gtfs-l', 'gtfs-si'}
+        Archival data is provided in these three rollups. The first one covers 1-6 and the S, the second covers the
+        L, and the third, the Staten Island Railway.
+    timestamp: str
+        The time_assigned associated with the data rollup. The files are time stamped at 01, 06, 11, 16, 21, 26, 31, 36,
+        41, 46, 51, and 56 minutes after the hour, so only these times will be valid.
+    raw: bool
+        Whether or not to return the raw requests object instead of the parsed GRFS-R record. Used in testing.
+    """
+    import requests
+    from google.transit import gtfs_realtime_pb2
+
+    response = requests.get("https://datamine-history.s3.amazonaws.com/{0}-{1}".format(feed, timestamp))
+
+    feed = gtfs_realtime_pb2.FeedMessage()
+    feed.ParseFromString(response.content)
+    return feed
+
+
+# def load_mytransit_archived_feed(feed='gtfs', timestamp=datetime.datetime(2017, 1, 1, 12, 0)):
+#     """
+#     Given a timestamp, loads the corresponding GTFS feed (rounded to the minute) for the given feed and returns it.
+#
+#     This data is loaded from Nathan Johnson's data.transit.nyc archiving project (http://data.mytransit.nyc/). His
+#     archive has all of the data from January 31st, 2016 through May 31st, 2017. However, it stopped updating
+#     recently.
+#     """
+#     ts = timestamp
+#     uri = "http://data.mytransit.nyc.s3.amazonaws.com/subway_time/{0}/{0}-{1}/subway_time_{2}.tar.xz".format(
+#         ts.year, ts.month.lpad(1), str(ts.year) + str(ts.month.lpad(1)) + str(ts.day.lpad(1))
+#     )
+#     filename_date_format = str(datetime.datetime.strftime(datetime.datetime(2016, 1, 1), "%Y%m%dT%H%MZ"))
+#     # TODO: Continue!
