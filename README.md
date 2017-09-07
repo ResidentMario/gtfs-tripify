@@ -116,8 +116,11 @@ complementary GTFS record. In the New York City case, these IDs are easy to read
 is a northbound train stop, while `S` means it is a southbound one.
 * `action`: The action that the given train took at the given stop. One of `STOPPED_AT`, `STOPPED_OR_SKIPPED`, or 
 `EN_ROUTE_TO` (if the trip is still in progress).
-* `minimum_time`: The minimum time at which the train pulled into the station. May be `NaN`.
-* `maximum_time`: The maximum time at which the train pulled out of the station. May be `NaN`.
+* `minimum_time`: The minimum time at which the train pulled into the station. May be `NaN`. This time is a [Unix 
+timestamp](https://en.wikipedia.org/wiki/Unix_time).
+* `maximum_time`: The maximum time at which the train pulled out of the station. May be `NaN`. Also a Unix timestamp.
+* `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information 
+pertinent to this record. Also a Unix timestamp.
 
 And that's all you need to know to put this data to use! Go frollick!
 
@@ -151,4 +154,4 @@ different lines, and in part because individual lines can run any of a number of
 weekday, time of day, holiday schedule, alignment of the moons of Saturn, etecetera.
 
 Isolating that stuff, too, would require a whole second order of logic: not something I have the time to do right 
-now. So instead I'm looking for a surrogate for this project that can finish up that additional part of the work.
+now. But maybe you do?
