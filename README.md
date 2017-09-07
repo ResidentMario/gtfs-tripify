@@ -142,14 +142,13 @@ MTA, I decided to tackle the challenge of transforming GTFS-Realtime feeds into 
 call "trip logs"). It was a mountain of a challenge. It's done now.
 
 However, I have not, as of yet, actually *used* this package for anything. The problem with ambitious ETL 
-transformations like this one is that it's hard to judge the value of the result you get until you get it.
+transformations like this one is that it's hard to judge the value of the result you get until you get it. And the 
+result we get is still not quite good enough...
 
 The MTA system is right bloody complicated. I succeeded in isolating stop sequences in time, however I did not do any
 work to further that into isolating route sequences. This is necessary in part because trains can get rerouted onto 
 different lines, and in part because individual lines can run any of a number of different *routes* depending on the
 weekday, time of day, holiday schedule, alignment of the moons of Saturn, etecetera.
-  
-Isolating that stuff, too, would require a whole second order of logic: not something I have the time or will to do 
-right now (but I am *more* than happy to advise anyone that is on what needs doing).
 
-More...
+Isolating that stuff, too, would require a whole second order of logic: not something I have the time to do right 
+now. So instead I'm looking for a surrogate for this project that can finish up that additional part of the work.
