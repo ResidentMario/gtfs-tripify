@@ -1,4 +1,6 @@
-import datetime
+# import datetime
+import numpy as np
+import itertools
 
 
 def synthesize_route(station_lists):
@@ -81,3 +83,59 @@ def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31', raw=False)
 #     )
 #     filename_date_format = str(datetime.datetime.strftime(datetime.datetime(2016, 1, 1), "%Y%m%dT%H%MZ"))
 #     # TODO: Continue!
+
+
+##############
+# HEURISTICS #
+##############
+
+def cut_cancellations(log):
+    """
+    Heuristically cuts stops that almost certainly didn't happen do to trip cancellations. I refer to this as
+    the "cut-cancellation" heuristic.
+
+    Returns a minified log containing only trips that almost assuredly happened.
+    """
+    # Immediately return if the log is empty.
+    if len(log) == 0:
+        return log
+    # Heuristically return an empty log if there are zero confirmed stops in the log.
+    elif ~(log.action == 'STOPPED_AT').any():
+        return log.head(0)
+    #
+    else:
+        # Find the last definite stop.
+        last_definite_stop = np.argmax(log.action[::-1] == 'STOPPED_AT')
+
+        # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same `LATEST_INFORMATION_TIME`.
+        suspicious_block = log.tail(-last_definite_stop - 1)
+        if len(suspicious_block) == 1:
+            return log
+        elif len(suspicious_block['latest_information_time'].unique()) == 1:
+            return log.head(last_definite_stop + 1)
+        else:
+            return log
+
+
+def discard_partial_logs(logbook):
+    """
+    Discards logs which appear in the first or last message in the feed. These logs are extremely likely to be
+    partial because we do not get to "see" every single message corresponding with the trip, as some are outside our
+    "viewing window".
+    """
+    trim = logbook.copy()
+
+    times = np.array(
+        list(
+            itertools.chain(
+                *[logbook[trip_id]['latest_information_time'].values for trip_id in logbook.keys()]
+            )
+        )
+    ).astype(int)
+    first, last = np.min(times), np.max(times)
+
+    for trip_id in logbook.keys():
+        if logbook[trip_id]['latest_information_time'].astype(int).isin([first, last]).any():
+            trim.pop(trip_id)
+
+    return trim

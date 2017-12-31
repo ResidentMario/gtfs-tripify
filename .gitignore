@@ -3,3 +3,4 @@
 __pycache__
 data
 gtfs_tripify.egg-info/
+notebooks/

@@ -1,3 +1,7 @@
+"""
+`gtfs-tripify` core test module. Asserts that all data generation steps are correct.
+"""
+
 import unittest
 import pytest
 from google.transit import gtfs_realtime_pb2
