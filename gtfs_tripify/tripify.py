@@ -459,11 +459,19 @@ def logify(feeds):
             actions_logs.append(action_log)
 
         trip_log = tripify(actions_logs)
-        ret[trip_id] = trip_log
+
+        # Coerce types.
+        trip_log = trip_log.assign(
+            minimum_time=trip_log.minimum_time.astype('float'),
+            maximum_time=trip_log.maximum_time.astype('float'),
+            latest_information_time=trip_log.latest_information_time.astype('float')
+        )
 
         # If the trip was terminated sometime in the course of these feeds, update the trip log accordingly.
         if trip_terminated:
-            ret[trip_id] = _finish_trip(ret[trip_id], trip_terminated_time)
+            trip_log = _finish_trip(trip_log, trip_terminated_time)
+
+        ret[trip_id] = trip_log
 
     return ret
 
