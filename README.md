@@ -28,19 +28,16 @@ feed3.ParseFromString(response3.content)
 ```
 
 Now we have a bunch of `gtfs_realtime_pb2.FeedMessage` object, each of which is a single decompressed GTFS-Realtime 
-feed. Each of these feeds represents the state of the same wired-up slice of the MTA transit network at different but
-consequetive points in time.
+feed message (or just "message" for short). Each of these feeds represents the state of the same wired-up slice of the MTA transit network at a different but consequetive point in time.
 
-Before we process them however, let's transform these objects into `dict` objects. Dictionaries have a >10x smaller 
-memory footprint than `gtfs_realtime_pb2.FeedMessage` objects. The following transform also makes the message conform
- to our schema by tossing or massaging out errors it encounters!
+This is where `gtfs_tripify` comes in. The `dictify` method can be used to transform these results in Python dictionaries (`dict` objects). A `dict` is less than a tenth the size of a `gtfs_realtime_pb2.FeedMessage` object. This transformation also repairs any errors it finds in the feed.
 
 ```python
 from gtfs_tripify import dictify
 feeds = [dictify(feed) for feed in [feed1, feed2, feed3]]
 ```
 
-Now we are ready to run this through logbuilding.
+Now it's time to build a logbook. We do this with the `logify` method.
 
 ```python
 from gtfs_tripify import logify
@@ -57,18 +54,7 @@ At this point we have a `logbook`. If we inspect it we see that it is a `dict` w
 }
 ```
 
-Each of the dictionary keys is a unique ID assigned to a particular trip. This unique ID is **not** the same as the 
-`trip_id` assigned to the trip in question in the raw GTFS-Realtime feed. The reason for this is that the MTA only 
-guarantees that `trip_id` is unique in the feed it appears in. However, when a trip ends, that trip's ID is released 
-and recycled for the next trip added to the record. `gtfs-tripify` works around this problem by appending a number, 
-`_0` in these two cases, to the very end of that trip's `trip_id`. When the ID is recycled, the trips further into 
-the future pick up higher numbers.
-
-So for example, suppose that a trip with the ID `047850_2..S05R` runs at 12:00 PM today. The trip ends at 2:00 PM. At
- 4:00 PM a new trip is added to the record, again with the ID `047850_2..S05R`! In this case the first trip will be 
- labeled `047850_2..S05R_0` and the second will be labeled `047850_2..S05R_1`, and so on.
-
-The contents of each trip label is a `trip log`.
+Each of the dictionary keys is a unique ID assigned to a particular trip. The contents of each trip label is a `trip log`.
 
 ```python
 print(logbook['047850_2..S05R_0'])
@@ -106,13 +92,12 @@ GTFS record. The GTFS record is a separate body of data published alongside a GT
 just a big packet of CSV files which explain how the system runs: what `stop_id` corresponds to what physical stop, 
 what the names of the routes are, what the variants in service are, etecetera.
 
-With that in mind, the fields are:
+The fields are:
 
-* `trip_id`: The ID assigned to the trip in the GTFS-Realtime record. This ID is guaranteed to be unique within a given
- feed, but is almost guaranteed to be non-unique historically. Hence the business with the keys explained above!
+* `trip_id`: The ID assigned to the trip in the GTFS-Realtime record.
 * `route_id`: The ID of the route. This is a reference to the ID given to a particular line in `routes.csv` of the 
 complementary GTFS record. In the New York City case, these IDs are easy to read: 2 means this is a number 2 train.
-* `stop_id`: The ID assigned to the stop un question, as given in the complimentary `stops.csv` file. `N` means this 
+* `stop_id`: The ID assigned to the stop in question, as given in the complimentary `stops.csv` file. `N` means this 
 is a northbound train stop, while `S` means it is a southbound one.
 * `action`: The action that the given train took at the given stop. One of `STOPPED_AT`, `STOPPED_OR_SKIPPED`, or 
 `EN_ROUTE_TO` (if the trip is still in progress).
@@ -122,7 +107,27 @@ timestamp](https://en.wikipedia.org/wiki/Unix_time).
 * `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information 
 pertinent to this record. Also a Unix timestamp.
 
-And that's all you need to know to put this data to use! Go frollick!
+At this point you have all of the stop data you could get, and may use it as you see fit. However, there are a couple of additional methods you may want to use.
+
+First of all if you want *only* trips which are complete, not ones that are in progress, you may use the `discard_partial_logs` method to trim trips that are still en route to their final destination.
+
+The other thing to know is that *train trips may be partial*. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
+
+It's impossible to naively know when this occurs, and it results in many phantom `STOP_OR_SKIP` records that never happen. Luckily these are relatively easily to remove heuristically: you can use the `discard_partial_logs` method to achieve this. Doing so is highly recommended.
+
+## Gotchas
+
+* Train trips may be partial. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
+
+* The unique ID used as the logbook key is **not** the same as the `trip_id` assigned to the trip in question in the raw GTFS-Realtime feed. The reason for this is that the MTA only guarantees that `trip_id` is unique in the feed it appears in. However, when a trip ends, that trip's ID is released and recycled for the next trip added to the record. `gtfs-tripify` works around this problem by appending a number, `_0` in these two cases, to the very end of that trip's `trip_id`. When the ID is recycled, the trips further into the future pick up higher numbers.
+
+  So for example, suppose that a trip with the ID `047850_2..S05R` runs at 12:00 PM today. The trip ends at 2:00 PM. At 4:00 PM a new trip is added to the record, again with the ID `047850_2..S05R`! In this case the first trip will be labeled `047850_2..S05R_0` and the second will be labeled `047850_2..S05R_1`, and so on.
+  
+  `gtfs_tripify` works around this problem by marking off when trip IDs dissappear from the feed. It is theoretically possible for a trip ID to be reassigned within the interval between two messages. There is no naive way to detect when this occurs, and `gtfs_tripify` doesn't even try.
+  
+* Sometimes feed messages are returned in a corrupted state. `gtfs_realtime_pb2` will fail to load these completely. You will lose some information in the output `logbook` (as there will be a larger gap between these messages), but `gtfs_tripify` is able to handle variably spaced GTFS-R messages.
+
+* Sometimes feed messages contain incoherent records. In the MTA GTFS-R feed common offenders are (1) trips with an empty string (`''`) for a trip ID and (2) trips that are already underway reporting a vehicle update, but no trip update. These issues are addressed (generally, by removing the offending messages) as part of the `dictify` procedure.
 
 ## Background
 
@@ -138,20 +143,4 @@ applications on the App Store. It also powers the arrival time update kiosks and
 MTA train stations as of late.
 
 However, GTFS-Realtime data is a format that, albeit good for telling you when your next train will arrive, makes 
-reconstructing a history *of* that train very difficult.
-
-Since I was interested in injecting some of the sought-after "objective data" into the story being told about the 
-MTA, I decided to tackle the challenge of transforming GTFS-Realtime feeds into reconstructed trip data (in what I 
-call "trip logs"). It was a mountain of a challenge. It's done now.
-
-However, I have not, as of yet, actually *used* this package for anything. The problem with ambitious ETL 
-transformations like this one is that it's hard to judge the value of the result you get until you get it. And the 
-result we get is still not quite good enough...
-
-The MTA system is right bloody complicated. I succeeded in isolating stop sequences in time, however I did not do any
-work to further that into isolating route sequences. This is necessary in part because trains can get rerouted onto 
-different lines, and in part because individual lines can run any of a number of different *routes* depending on the
-weekday, time of day, holiday schedule, alignment of the moons of Saturn, etecetera.
-
-Isolating that stuff, too, would require a whole second order of logic: not something I have the time to do right 
-now. But maybe you do?
+reconstructing a history *of* that train very difficult. Since I was interested in injecting some of the sought-after "objective data" into the story being told about the MTA, I decided to tackle the challenge of transforming GTFS-Realtime feeds into reconstructed trip data (in what I call "trip logs").
