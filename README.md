@@ -113,7 +113,10 @@ First of all if you want *only* trips which are complete, not ones that are in p
 
 The other thing to know is that *train trips may be partial*. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
 
-It's impossible to naively know when this occurs, and it results in many phantom `STOP_OR_SKIP` records that never happen. Luckily these are relatively easily to remove heuristically: you can use the `discard_partial_logs` method to achieve this. Doing so is highly recommended.
+It's impossible to naively know when this occurs, and it results in many phantom `STOP_OR_SKIP` records that never 
+happen. Luckily these are relatively easily to remove heuristically: you can use the `discard_partial_logs` method to
+ achieve this. Doing so is highly recommended. This will fail for shuttles (trains which rapidly transition between 
+ only two different stops), however. In that case there is *nothing* you can do, unfortunately!
 
 ## Gotchas
 
