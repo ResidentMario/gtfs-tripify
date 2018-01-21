@@ -181,7 +181,6 @@ def to_sql(logbook, conn):
     #
     # For the purposes of long-term storage, we must come up with our own unique keys.
     key_modifications = {}
-    # import pdb; pdb.set_trace()
     for trip_id in logbook.keys():
         root, mod = trip_id[:-2], int(trip_id[-1:])
         orig_mod = mod

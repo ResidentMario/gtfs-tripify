@@ -149,7 +149,7 @@ class TestToSQL(unittest.TestCase):
         gt.utils.to_sql({}, conn)
 
         c = conn.cursor()
-        result = c.execute("SELECT COUNT(*) FROM LOGBOOKS").fetchone()
+        result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
         assert result == (0,)
 
         c.close()
@@ -172,7 +172,7 @@ class TestToSQL(unittest.TestCase):
         gt.utils.to_sql(logbook, conn)
 
         c = conn.cursor()
-        result = c.execute("SELECT DISTINCT unique_trip_id FROM LOGBOOKS").fetchall()
+        result = c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall()
         assert result == [('same_trip_id_0',), ('same_trip_id_1',)]
 
         c.close()
@@ -207,13 +207,13 @@ class TestToSQL(unittest.TestCase):
         gt.utils.to_sql(logbook, conn)
 
         c = conn.cursor()
-        result = c.execute("SELECT DISTINCT unique_trip_id FROM LOGBOOKS").fetchall()
-        assert result == [('same_trip_id_0',), ('same_trip_id_1',), ('same_trip_id_2',), ('same_trip_id_3',)]
+        result = set(c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall())
+        assert result == {('same_trip_id_0',), ('same_trip_id_1',), ('same_trip_id_2',), ('same_trip_id_3',)}
 
         c.close()
         conn.close()
 
-    def testDoublyDuplicatedKeyInsertion(self):
+    def testDoublyDuplicatedKeyInsertionVariant(self):
         """
         Like the above, but with logbooks of different lengths.
         """
@@ -231,7 +231,7 @@ class TestToSQL(unittest.TestCase):
         gt.utils.to_sql(logbook2, conn)
 
         c = conn.cursor()
-        result = set(c.execute("SELECT DISTINCT unique_trip_id FROM LOGBOOKS").fetchall())
+        result = set(c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall())
         assert result == {('same_trip_id_0',), ('same_trip_id_1',), ('same_trip_id_2',), ('same_trip_id_3',),
                           ('same_trip_id_4',)}
 
