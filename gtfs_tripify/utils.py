@@ -180,6 +180,12 @@ def to_sql(logbook, conn):
     # written to the database.
     #
     # For the purposes of long-term storage, we must come up with our own unique keys.
+
+    # TODO: Address the Schlemiel the Painter's Algorithm characteristics of this algorithm.
+    # We should count up more smartly than just taking step sizes of 1.
+    # TODO: Investigate why this algorithm results in such high numbers when used for writing to the database.
+    # A typical `unique_trip_id` in the database might be 052800_GS.N03R_792, for no immediately identifiable reason.
+    # What the heck?
     key_modifications = {}
     for trip_id in logbook.keys():
         root, mod = trip_id[:-2], int(trip_id[-1:])
@@ -196,7 +202,6 @@ def to_sql(logbook, conn):
 
                 # If it has changed, there has been a collision in the table.
                 # Make sure to pick a new key that does not collide with anything in the logbook.
-                # TODO: Is this globally satisfiable? Is this contiguous in the DB?
                 while True:
                     potential_new_key = "{0}_{1}".format(root, new_mod)
 

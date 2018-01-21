@@ -1,6 +1,5 @@
 .cache
 .idea
 __pycache__
-data
 gtfs_tripify.egg-info/
 notebooks/

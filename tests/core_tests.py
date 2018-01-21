@@ -902,9 +902,3 @@ class TripLogbookTests(unittest.TestCase):
         logbook = gt.logify([self.log_0, self.log_1])
 
         assert len(logbook) == 94
-
-    # def test_logbook_merge(self):
-    #     logbook_0 = gt.logify([self.log_0])
-    #     logbook_1 = gt.logify([self.log_1])
-    #     logbook = gt.merge_logbooks([logbook_0, logbook_1])
-    #     assert len(logbook) == 94
