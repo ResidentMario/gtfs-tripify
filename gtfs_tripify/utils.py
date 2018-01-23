@@ -160,7 +160,7 @@ def to_sql(logbook, conn):
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS Logbooks (
-          "index" INTEGER PRIMARY KEY,
+          "event_id" INTEGER PRIMARY KEY,
           "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
           "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
           "stop_id" TEXT, "latest_information_time" TEXT
