@@ -341,7 +341,6 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     most_recent_passed_stop = None
 
     while kd_i < len(key_data) and st_i < len(stops):
-        # import pdb; pdb.set_trace()
         next_stop = stops[st_i]
         next_record = key_data.iloc[kd_i]
 
@@ -379,7 +378,7 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
             kd_i += 1
 
     # Any stops left over we haven't arrived at yet.
-    latest_information_time = information_times[-2]
+    latest_information_time = int(information_times[-2])
 
     for remaining_stop in [stop for stop in stops if stop not in passed_stops]:
         future_stop = np.append(base.copy(), np.array(
@@ -464,7 +463,7 @@ def logify(feeds):
         trip_log = trip_log.assign(
             minimum_time=trip_log.minimum_time.astype('float'),
             maximum_time=trip_log.maximum_time.astype('float'),
-            latest_information_time=trip_log.latest_information_time.astype('float')
+            latest_information_time=trip_log.latest_information_time.astype('int')
         )
 
         # If the trip was terminated sometime in the course of these feeds, update the trip log accordingly.
