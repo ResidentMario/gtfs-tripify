@@ -26,13 +26,13 @@ class TestCutCancellations(unittest.TestCase):
         result = gt.utils.cut_cancellations(log)
         assert len(result) == 0
 
-    def test_zero_confirmed(self):
-        """
-        The heuristic should return an empty log if there are zero confirmed stops in the log.
-        """
-        log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']])
-        result = gt.utils.cut_cancellations(log)
-        assert len(result) == 0
+    # def test_zero_confirmed(self):
+    #     """
+    #     The heuristic should return an empty log if there are zero confirmed stops in the log.
+    #     """
+    #     log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']])
+    #     result = gt.utils.cut_cancellations(log)
+    #     assert len(result) == 0
 
     def test_zero_tailing_unconfirmed(self):
         """
@@ -76,6 +76,21 @@ class TestCutCancellations(unittest.TestCase):
         log = pd.DataFrame(columns=self.log_columns,
                            data=[
                                ['_', '_', 'STOPPED_AT', '_', '_', '_', 0],
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1],
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1]
+                           ])
+        result = gt.utils.cut_cancellations(log)
+        assert len(result) == 1
+
+    def test_many_nonunique_tailing_unconfirmed_stop_skip(self):
+        """
+        Sometimes the last record before the trip is cut off is a `STOPPED_OR_SKIPPED` record (or multiple such
+        records). The heuristic should account for this and only cut `STOPPED_OR_SKIPPED` trips with multiple copies of
+        the same timestamp.
+        """
+        log = pd.DataFrame(columns=self.log_columns,
+                           data=[
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1]
                            ])

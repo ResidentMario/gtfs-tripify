@@ -108,13 +108,13 @@ def cut_cancellations(log):
     # Immediately return if the log is empty.
     if len(log) == 0:
         return log
-    # Heuristically return an empty log if there are zero confirmed stops in the log.
-    elif ~(log.action == 'STOPPED_AT').any():
-        return log.head(0)
-    # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same `LATEST_INFORMATION_TIME`.
+    # # Heuristically return an empty log if there are zero confirmed stops in the log.
+    # elif ~(log.action == 'STOPPED_AT').any():
+    #     return log.head(0)
     else:
         # Find the last definite stop.
-        last_definite_stop = np.argmax(log.action[::-1] == 'STOPPED_AT')
+        last_definite_stop = (log.latest_information_time == log.latest_information_time.unique()[-1]).idxmax() - 1
+        # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same `LATEST_INFORMATION_TIME`.
         suspicious_block = log.tail(-last_definite_stop - 1)
         if len(suspicious_block) == 1:
             return log
