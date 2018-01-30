@@ -1,6 +1,6 @@
 # gtfs-tripify ![t](https://img.shields.io/badge/status-alpha-red.svg)
 
-`gtfs-tripify` is a Python package for creating trip logs out of GTFS-Realtime messages.
+`gtfs-tripify` is a Python package for creating trip logs out of GTFS-Realtime messages. For more background and what and why, please [read this blog post](http://www.residentmar.io/2018/01/29/gtfs-tripify.html).
 
 ## Quickstart
 
@@ -109,18 +109,13 @@ pertinent to this record. Also a Unix timestamp.
 
 At this point you have all of the stop data you could get, and may use it as you see fit. However, there are a couple of additional methods you may want to use.
 
-First of all if you want *only* trips which are complete, not ones that are in progress, you may use the `discard_partial_logs` method to trim trips that are still en route to their final destination.
+If you want *only* trips which are complete, not ones that are in progress, you may use the `gtfs_tripify.utils.discard_partial_logs` method to trim trips that are still en route to their final destination.
 
-The other thing to know is that *train trips may be partial*. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
-
-It's impossible to naively know when this occurs, and it results in many phantom `STOP_OR_SKIP` records that never 
-happen. Luckily these are relatively easily to remove heuristically: you can use the `discard_partial_logs` method to
- achieve this. Doing so is highly recommended. This will fail for shuttles (trains which rapidly transition between 
- only two different stops), however. In that case there is *nothing* you can do, unfortunately!
+By default, I don't remove stops that did not occur due to the trip being cancelled. These occur very often because it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned a different trip. An end-to-end service run may break down into many trips. Use the `gtfs_tripify.utils.discard_partial_logs` to get rid of these. Doing so is highly recommended. Just don't try it with two-stop shuttle services!
 
 ## Gotchas
 
-* Train trips may be partial. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
+* Train trips are often partial. In fact, it's relatively common for a train trip to be cancelled, and for the train in question to be reassigned to a new and different trip plan. This can happen arbitrarily many times in one complete service run. In other words, one complete end-to-end service run (from the first station to the last) may be composed of two, three, or even more distinct trips!
 
 * The unique ID used as the logbook key is **not** the same as the `trip_id` assigned to the trip in question in the raw GTFS-Realtime feed. The reason for this is that the MTA only guarantees that `trip_id` is unique in the feed it appears in. However, when a trip ends, that trip's ID is released and recycled for the next trip added to the record. `gtfs-tripify` works around this problem by appending a number, `_0` in these two cases, to the very end of that trip's `trip_id`. When the ID is recycled, the trips further into the future pick up higher numbers.
 
@@ -129,21 +124,3 @@ happen. Luckily these are relatively easily to remove heuristically: you can use
   `gtfs_tripify` works around this problem by marking off when trip IDs dissappear from the feed. It is theoretically possible for a trip ID to be reassigned within the interval between two messages. There is no naive way to detect when this occurs, and `gtfs_tripify` doesn't even try.
   
 * Sometimes feed messages are returned in a corrupted state. `gtfs_realtime_pb2` will fail to load these completely. You will lose some information in the output `logbook` (as there will be a larger gap between these messages), but `gtfs_tripify` is able to handle variably spaced GTFS-R messages.
-
-* Sometimes feed messages contain incoherent records. In the MTA GTFS-R feed common offenders are (1) trips with an empty string (`''`) for a trip ID and (2) trips that are already underway reporting a vehicle update, but no trip update. These issues are addressed (generally, by removing the offending messages) as part of the `dictify` procedure.
-
-## Background
-
-The MTA, the local subway service in New York City, has been receiving an ever-increasing battering in the press for 
-the last whenever for constant delays and slow service on the city's train lines (see e.g. [this piece](https://www.villagevoice.com/2017/08/02/subway-summer-of-hell-really-started-years-ago-data-shows/) in the Village Voice). 
-Journalistic publications have indited a variety of factors. The Voice piece draws a good point on this subject: 
-that all of the various blame games have occurred "absent objective data".
-
-The MTA publishes such objective data, actually, in the form of what is known as a GTFS-Realtime feed. This is a 
-realtime data format that was invented over at Google for the purposes of providing reliable rapid transit updates.
-It's the one that powers transit information in applications like Google Maps and the various subway tracking 
-applications on the App Store. It also powers the arrival time update kiosks and panels that have begun to penetrate 
-MTA train stations as of late.
-
-However, GTFS-Realtime data is a format that, albeit good for telling you when your next train will arrive, makes 
-reconstructing a history *of* that train very difficult. Since I was interested in injecting some of the sought-after "objective data" into the story being told about the MTA, I decided to tackle the challenge of transforming GTFS-Realtime feeds into reconstructed trip data (in what I call "trip logs").
