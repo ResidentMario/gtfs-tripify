@@ -26,13 +26,13 @@ class TestCutCancellations(unittest.TestCase):
         result = gt.utils.cut_cancellations(log)
         assert len(result) == 0
 
-    # def test_zero_confirmed(self):
-    #     """
-    #     The heuristic should return an empty log if there are zero confirmed stops in the log.
-    #     """
-    #     log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']])
-    #     result = gt.utils.cut_cancellations(log)
-    #     assert len(result) == 0
+    def test_zero_confirmed(self):
+        """
+        The heuristic should return an empty log if there are zero confirmed stops in the log.
+        """
+        log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']])
+        result = gt.utils.cut_cancellations(log)
+        assert len(result) == 0
 
     def test_zero_tailing_unconfirmed(self):
         """
@@ -96,6 +96,19 @@ class TestCutCancellations(unittest.TestCase):
                            ])
         result = gt.utils.cut_cancellations(log)
         assert len(result) == 1
+
+    def test_many_unconfirmed_stop_skip(self):
+        """
+        The heuristic should return an empty log in cases when there is no information in the log.
+        """
+        log = pd.DataFrame(columns=self.log_columns,
+                           data=[
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0],
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0],
+                               ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0]
+                           ])
+        result = gt.utils.cut_cancellations(log)
+        assert len(result) == 0
 
 
 class TestDiscardPartialLogs(unittest.TestCase):
