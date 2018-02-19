@@ -1,8 +1,24 @@
 # gtfs-tripify ![t](https://img.shields.io/badge/status-alpha-red.svg)
 
-`gtfs-tripify` is a Python package for creating trip logs out of GTFS-Realtime messages. For more background and what and why, please [read this blog post](http://www.residentmar.io/2018/01/29/gtfs-tripify.html).
+The [Metropolitan Transit Authority](https://en.wikipedia.org/wiki/Metropolitan_Transportation_Authority) is the 
+primary public transportation authority for the greater New York City region. It provides real-time information about 
+its buses, subway trains, and track trains using a bundle of what are called [GTFS-Realtime 
+feeds](https://developers.google.com/transit/gtfs-realtime/). Each GTFS-RT feed represents a snapshot of a slice of the 
+MTA's service jurisdiction at a certain timestamp.
+
+`gtfs-tripify` is a Python package for turning streams of GTFS-Realtime messages into a "trip log" of train arrival and 
+departure times. The result is the ground truth history of arrivals and departures of all trains included in the 
+inputted GTFS-RT feeds.
+
+[For more on how this package came to be, read this blog post](http://www.residentmar.io/2018/01/29/gtfs-tripify.html).
 
 ## Quickstart
+
+Begin by running the following to install this package on your local machine:
+
+```sh
+pip install git+git://github.com/ResidentMario/gtfs-tripify.git@master
+```
 
 First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format 
 encoded using a Google data encoding known as Protobuf. The easiest way to access the data is to use the default 
