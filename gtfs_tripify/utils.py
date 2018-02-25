@@ -4,6 +4,7 @@ import itertools
 import tarfile
 import os
 import pandas as pd
+import re
 
 
 def synthesize_route(station_lists):
@@ -188,7 +189,8 @@ def to_sql(logbook, conn):
     # What the heck?
     key_modifications = {}
     for trip_id in logbook.keys():
-        root, mod = trip_id[:-2], int(trip_id[-1:])
+        mod = int(re.findall("([1-9]+)", '052900_5..N16R_742')[-1])
+        root = trip_id[:len(str(mod))]
         orig_mod = mod
         while True:
             if (root, mod) in root_id_modifier_pairs:
