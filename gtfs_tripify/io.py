@@ -2,7 +2,6 @@ import pandas as pd
 import gtfs_tripify as gt
 from google.transit import gtfs_realtime_pb2
 import warnings
-from datetime import datetime
 
 
 def logbook_to_sql(logbook, conn):
@@ -82,6 +81,7 @@ CREATE TABLE IF NOT EXISTS Logbooks (
 
 def parse_feed(filepath):
     """Helper function for reading a feed in using Protobuf. Handles bad feeds by replacing them with None."""
+    # TODO: tests
     with warnings.catch_warnings():
         warnings.simplefilter("error")
 
@@ -106,7 +106,7 @@ def parse_feed(filepath):
                 return None
 
 
-def stream_to_sql(stream, conn, exclude=None):
+def stream_to_sql(stream, conn, parser=None):
     """
     Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable manner.
     """
@@ -119,25 +119,7 @@ def stream_to_sql(stream, conn, exclude=None):
     logbook = gt.logify(stream)
     del stream
 
-    # Cut cancelled and incomplete trips from the logbook.
-    # Exclude routes included in the exclude list (which should only be used for shuttles).
-    for trip_id in logbook.keys():
-        if len(logbook[trip_id]) > 0 and logbook[trip_id].iloc[0].route_id not in exclude:
-            logbook[trip_id] = gt.utils.cut_cancellations(logbook[trip_id])
+    if parser:
+        logbook = parser(logbook)
 
-    logbook = gt.utils.discard_partial_logs(logbook)
-
-    # Cut empty trips, singleton trips, and trips that began on the follow-on day.
-    trim = logbook.copy()
-    for trip_id in logbook.keys():
-        if len(logbook[trip_id]) <= 1:
-            del trim[trip_id]
-        # TODO: Move this into the script body.
-        # else:
-        #     start_ts = logbook[trip_id].iloc[0]['latest_information_time']
-        #     if datetime.fromtimestamp(int(start_ts)).day != start_datetime.day:
-        #         del trim[trip_id]
-
-    del logbook
-
-    gt.io.logbook_to_sql(trim, conn)
+    gt.io.logbook_to_sql(logbook, conn)
