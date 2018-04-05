@@ -7,9 +7,9 @@ import sqlite3
 import gtfs_tripify as gt
 
 
-class TestToSQL(unittest.TestCase):
+class TestLogbookToSQL(unittest.TestCase):
     """
-    Tests the SQL writer utility.
+    Tests the logbook SQL writer utility.
     """
     def setUp(self):
         self.log_columns = ['trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
@@ -111,3 +111,10 @@ class TestToSQL(unittest.TestCase):
 
         c.close()
         conn.close()
+
+
+class TestStreamToSQL(unittest.TestCase):
+    """
+    Tests the stream SQL writer utility.
+    """
+    pass

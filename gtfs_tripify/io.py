@@ -12,13 +12,12 @@ def logbook_to_sql(logbook, conn):
     # Initialize the database.
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS Logbooks (
-          "event_id" INTEGER PRIMARY KEY,
-          "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
-          "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
-          "stop_id" TEXT, "latest_information_time" TEXT
-        );
-    """)
+CREATE TABLE IF NOT EXISTS Logbooks (
+  "event_id" INTEGER PRIMARY KEY,
+  "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
+  "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
+  "stop_id" TEXT, "latest_information_time" TEXT
+);""")
     conn.commit()
 
     database_unique_ids = set(
@@ -107,44 +106,38 @@ def parse_feed(filepath):
                 return None
 
 
-def stream_to_sql(stream, start_time, log_cut_heuristic_exceptions):
+def stream_to_sql(stream, conn, exclude=None):
     """
-    Given a stream of parsed Protobuf messages...
+    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable manner.
     """
-    # TODO: finish ironing out this method's API.
-    # TODO: write this method's tests.
-    start_datetime = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
+    # TODO: tests.
 
     stream = [parse_feed(feed) for feed in stream]
     stream = [feed for feed in stream if feed is not None]
-
-    # print("Converting feeds into dictionaries...")
     stream = [gt.dictify(feed) for feed in stream]
 
-    # print("Building the logbook...")
     logbook = gt.logify(stream)
     del stream
 
-    # Cut cancelled and incomplete trips from the logbook. Note that we must exclude shuttles.
-    # print("Trimming cancelled and incomplete stops...")
+    # Cut cancelled and incomplete trips from the logbook.
+    # Exclude routes included in the exclude list (which should only be used for shuttles).
     for trip_id in logbook.keys():
-        if len(logbook[trip_id]) > 0 and logbook[trip_id].iloc[0].route_id not in log_cut_heuristic_exceptions:
+        if len(logbook[trip_id]) > 0 and logbook[trip_id].iloc[0].route_id not in exclude:
             logbook[trip_id] = gt.utils.cut_cancellations(logbook[trip_id])
 
     logbook = gt.utils.discard_partial_logs(logbook)
 
     # Cut empty trips, singleton trips, and trips that began on the follow-on day.
-    # print("Cutting cancelled and follow-on-day trips...")
     trim = logbook.copy()
     for trip_id in logbook.keys():
         if len(logbook[trip_id]) <= 1:
             del trim[trip_id]
-        else:
-            start_ts = logbook[trip_id].iloc[0]['latest_information_time']
-            if datetime.fromtimestamp(int(start_ts)).day != start_datetime.day:
-                del trim[trip_id]
+        # TODO: Move this into the script body.
+        # else:
+        #     start_ts = logbook[trip_id].iloc[0]['latest_information_time']
+        #     if datetime.fromtimestamp(int(start_ts)).day != start_datetime.day:
+        #         del trim[trip_id]
 
     del logbook
 
-    print("Writing to SQL...")
-    gt.utils.to_sql(trim, conn)
+    gt.io.logbook_to_sql(trim, conn)
