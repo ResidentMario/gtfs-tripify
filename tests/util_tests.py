@@ -4,7 +4,6 @@
 
 import unittest
 import pandas as pd
-import sqlite3
 
 import sys; sys.path.append("../")
 import gtfs_tripify as gt

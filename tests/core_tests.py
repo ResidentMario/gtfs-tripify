@@ -9,7 +9,6 @@ from google.transit import gtfs_realtime_pb2
 import collections
 import numpy as np
 import pandas as pd
-import pickle
 
 import sys; sys.path.append("../")
 import gtfs_tripify as gt

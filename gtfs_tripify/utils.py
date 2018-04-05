@@ -3,8 +3,6 @@ import numpy as np
 import itertools
 import tarfile
 import os
-import pandas as pd
-import re
 
 
 def synthesize_route(station_lists):
