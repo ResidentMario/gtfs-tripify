@@ -108,6 +108,11 @@ def parse_feed(filepath):
 
 
 def stream_to_sql(stream, start_time, log_cut_heuristic_exceptions):
+    """
+    Given a stream of parsed Protobuf messages...
+    """
+    # TODO: finish ironing out this method's API.
+    # TODO: write this method's tests.
     start_datetime = datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
 
     stream = [parse_feed(feed) for feed in stream]
