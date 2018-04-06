@@ -115,6 +115,49 @@ class TestLogbookToSQL(unittest.TestCase):
 
 class TestStreamToSQL(unittest.TestCase):
     """
-    Tests the stream SQL writer utility.
+    Tests the stream SQL writer utility. This method is a thin wrapper, the logic is tested elsewhere.
     """
-    pass
+    def setUp(self):
+        self.stream = ["./fixtures/gtfs-20160512T0400Z", "./fixtures/gtfs-20160512T0401Z"]
+
+    def testWithoutParser(self):
+        """
+        The method works as expected without a parser.
+        """
+        conn = sqlite3.connect(":memory:")
+        gt.io.stream_to_sql(self.stream, conn)
+        c = conn.cursor()
+
+        result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
+        assert result == (2079,)
+
+        c.close()
+        conn.close()
+
+    def testWithNullTransform(self):
+        """
+        The method works as expected with an identity transform.
+        """
+        conn = sqlite3.connect(":memory:")
+        gt.io.stream_to_sql(self.stream, conn, transform=lambda logbook: logbook)
+        c = conn.cursor()
+
+        result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
+        assert result == (2079,)
+
+        c.close()
+        conn.close()
+
+    def testWithNonNullTransform(self):
+        """
+        The method works as expected with a real transform.
+        """
+        conn = sqlite3.connect(":memory:")
+        gt.io.stream_to_sql(self.stream, conn, transform=lambda logbook: gt.utils.discard_partial_logs(logbook))
+        c = conn.cursor()
+
+        result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
+        assert result == (0,)  # all logs retrieved from a two-message stream are partial, so all are discarded.
+
+        c.close()
+        conn.close()

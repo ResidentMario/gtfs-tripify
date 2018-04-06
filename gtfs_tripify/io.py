@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS Logbooks (
 
 def parse_feed(filepath):
     """Helper function for reading a feed in using Protobuf. Handles bad feeds by replacing them with None."""
-    # TODO: tests
+    # TODO: tests.
     with warnings.catch_warnings():
         warnings.simplefilter("error")
 
@@ -90,28 +90,31 @@ def parse_feed(filepath):
                 fm = gtfs_realtime_pb2.FeedMessage()
                 fm.ParseFromString(f.read())
                 return fm
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            # Protobuf occasionally raises an unexpected tag RuntimeWarning. This sometimes occurs when a feed that we
-            # read is in an inconsistent state (the other option is a straight-up exception). It's just a warning,
-            # but it corresponds with data loss, and `gtfs-tripify` should not be allowed to touch the resulting
-            # message --- it will take the non-presence of certain trips no longer present in the database at the
-            # given time as evidence of trip ends. We need to explicitly return None for the corresponding messages
-            # so they can be totally excised.
-            # See https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
+
+            # Protobuf occasionally raises an unexpected tag RuntimeWarning. This occurs when a feed that we
+            # read has unexpected problems, but is still valid overall. This warning corresponds with data loss in
+            # most cases. `gtfs-tripify` is sensitive to the disappearance of trips in the record. If data is lost,
+            # it's best to excise the message entirely. Hence we catch these warnings and return a flag value None,
+            # to be taken into account upstream. For further information see the following thread:
+            # https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
             except RuntimeWarning:
                 return None
-            # TODO: do not use bare except
+
+            # Raise for system and user interrupt signals.
+            except (KeyboardInterrupt, SystemExit):
+                raise
+
+            # Return the same None flag value for all other (Protobuf-thrown) errors.
+            # TODO: do not use bare except.
             except:
                 return None
 
 
-def stream_to_sql(stream, conn, parser=None):
+def stream_to_sql(stream, conn, transform=None):
     """
-    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable manner.
+    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable manner. To transform
+    the data in the logbook before writing to the database, provide a method doing so to the `transform` parameter.
     """
-    # TODO: tests.
-
     stream = [parse_feed(feed) for feed in stream]
     stream = [feed for feed in stream if feed is not None]
     stream = [gt.dictify(feed) for feed in stream]
@@ -119,7 +122,7 @@ def stream_to_sql(stream, conn, parser=None):
     logbook = gt.logify(stream)
     del stream
 
-    if parser:
-        logbook = parser(logbook)
+    if transform:
+        logbook = transform(logbook)
 
     gt.io.logbook_to_sql(logbook, conn)
