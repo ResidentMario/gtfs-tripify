@@ -16,7 +16,7 @@ import gtfs_tripify as gt
 
 class TestDictify(unittest.TestCase):
     def setUp(self):
-        with open("./data/gtfs-20160512T0400Z", "rb") as f:
+        with open("./fixtures/gtfs-20160512T0400Z", "rb") as f:
             gtfs = gtfs_realtime_pb2.FeedMessage()
             gtfs.ParseFromString(f.read())
 
@@ -871,11 +871,11 @@ class TripLogbookTests(unittest.TestCase):
     Smoke tests for generating trip logbooks and merging them.
     """
     def setUp(self):
-        with open("./data/gtfs-20160512T0400Z", "rb") as f:
+        with open("./fixtures/gtfs-20160512T0400Z", "rb") as f:
             gtfs_0 = gtfs_realtime_pb2.FeedMessage()
             gtfs_0.ParseFromString(f.read())
 
-        with open("./data/gtfs-20160512T0401Z", "rb") as f:
+        with open("./fixtures/gtfs-20160512T0401Z", "rb") as f:
             gtfs_1 = gtfs_realtime_pb2.FeedMessage()
             gtfs_1.ParseFromString(f.read())
 
