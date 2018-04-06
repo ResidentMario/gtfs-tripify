@@ -1,7 +1,12 @@
 import pandas as pd
 import gtfs_tripify as gt
-from google.transit import gtfs_realtime_pb2
 import warnings
+
+# This module will only work if the Google parser is provided, but we do not want to make it a package dependency.
+try:
+    from google.transit import gtfs_realtime_pb2
+except ImportError:
+    pass
 
 
 def logbook_to_sql(logbook, conn):
