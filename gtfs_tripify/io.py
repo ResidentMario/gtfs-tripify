@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS Logbooks (
     # What the heck?
     key_modifications = {}
     for trip_id in logbook.keys():
-        root, mod = trip_id[:-2], int(trip_id[-1:])
+        idx = trip_id.rfind("_")
+        root, mod = trip_id[:idx], trip_id[idx + 1:]
         orig_mod = mod
         while True:
             if (root, mod) in root_id_modifier_pairs:
@@ -70,7 +71,11 @@ CREATE TABLE IF NOT EXISTS Logbooks (
                 break
 
     for key in key_modifications:
-        logbook[key_modifications[key]] = logbook.pop(key)
+        try:
+            logbook[key_modifications[key]] = logbook.pop(key)
+        except:
+            import pdb; pdb.set_trace()
+            pass
 
     # Write out.
     if len(logbook) > 0:
