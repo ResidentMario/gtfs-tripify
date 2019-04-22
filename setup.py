@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='gtfs-tripify',
+    name='gtfs_tripify',
     py_modules=['gtfs_tripify'],
     version='0.0.1',
     install_requires=['numpy', 'pandas'],
