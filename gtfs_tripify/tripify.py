@@ -230,11 +230,9 @@ def actionify(trip_message, vehicle_message, timestamp):
     """
     Parses the trip update and vehicle update messages (if there is one; may be None) for a particular trip into an
     action log.
-
-    This method is called by parse_message_list_into_action_log in a loop in order to get the complete action log.
     """
     # If a vehicle message is not None, the trip is already in progress.
-    inp = bool(vehicle_message)
+    inp = vehicle_message is not None
 
     # The base of the log entry is the same for all possible entries.
     base = np.array([trip_message['trip_update']['trip']['trip_id'],
@@ -270,8 +268,8 @@ def actionify(trip_message, vehicle_message, timestamp):
         elif first_station and vehicle_status == 'QUEUED':
             log_departure(stop_id, departure_time)
 
-        # First station, vehicle status is IN_TRANSIT_TO or INCOMING_AT, both arrival and departure fields are notnull.
-        # Intermediate station, both arrival and departure fields are notnull.
+        # First station, vehicle status is IN_TRANSIT_TO or INCOMING_AT, both arrival and departure fields are non-null.
+        # Intermediate station, both arrival and departure fields are non-null.
         elif ((first_station and
                vehicle_status in ['IN_TRANSIT_TO', 'INCOMING_AT'] and
                pd.notnull(arrival_time) and pd.notnull(departure_time)) or
@@ -303,6 +301,9 @@ def actionify(trip_message, vehicle_message, timestamp):
 
     action_log = pd.DataFrame(loglist, columns=['trip_id', 'route_id', 'information_time', 'action', 'stop_id',
                                               'time_assigned'])
+    # base is a single-typed numpy array which converts the information_time input to dtype `U<14`
+    # so we have to convert it back before returning
+    action_log = action_log.assign(information_time=action_log.information_time.astype(int))
     return action_log
 
 
@@ -323,6 +324,8 @@ def _parse_message_list_into_action_log(message_collection, timestamp):
     return pd.concat(actions_list)
 
 
+# TODO: add a key to the log with the list of timestamps associated with the log. 
+# This is needed for merge, and helpful metadata to have in general.
 def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     """
     Given a list of action logs associated with a particular trip, returns the result of their merger: a single trip
@@ -342,6 +345,7 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
                 .groupby('information_time')
                 .first()
                 .reset_index())
+    timestamps = key_data.information_time.values.tolist()
 
     # Get the complete (synthetic) stop list.
     stops = synthesize_route([list(log['stop_id'].unique()) for log in tripwise_action_logs])
@@ -416,7 +420,7 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
         assert finish_information_time
         trip = _finish_trip(trip, finish_information_time)
 
-    return trip
+    return trip, timestamps
 
 
 def _finish_trip(trip_log, timestamp):
@@ -434,13 +438,15 @@ def _finish_trip(trip_log, timestamp):
 def logify(updates):
     """
     Given a list of feed updates, returns a logbook associated with each trip mentioned in those feeds.
+    Also returns the set of timestamps covered by the logbook. Output is the tuple (logbook, timestamps).
     """
     last_timestamp = updates[-1]['header']['timestamp']
 
     # collate generates `unique_trip_id` values for each trip and keys them to message collections
     message_collections = collate(updates)
 
-    ret = dict()
+    logbook = dict()
+    timestamps = dict()
 
     for unique_trip_id in message_collections:
         message_collection = message_collections[unique_trip_id]
@@ -450,7 +456,7 @@ def logify(updates):
 
         action_log = _parse_message_list_into_action_log(message_collection, last_tripwise_timestamp)
         actions_logs.append(action_log)
-        trip_log = tripify(actions_logs)
+        trip_log, trip_timestamps = tripify(actions_logs)
         # TODO: is this necessary? Coerce types.
         trip_log = trip_log.assign(
             minimum_time=trip_log.minimum_time.astype('float'),
@@ -463,46 +469,83 @@ def logify(updates):
             trip_terminated_time = last_tripwise_timestamp
             trip_log = _finish_trip(trip_log, trip_terminated_time)
 
-        ret[unique_trip_id] = trip_log
+        logbook[unique_trip_id] = trip_log
+        timestamps[unique_trip_id] = trip_timestamps
 
-    return ret
+    return logbook, timestamps
 
 
-# TODO: the routines below are unused, remove them?
-def merge_logbooks(logbooks):
+def merge_logbooks(logbook_tuples):
     """
-    Given a list of trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns their merger.
+    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...], merge them.
     """
     left = dict()
-    for right in logbooks:
-        left = _join_logbooks(left, right)
-    return left
+    left_timestamps = dict()
+    for (right, right_timestamps) in logbook_tuples:
+        left, left_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
+    return left, left_timestamps
 
 
-def _join_logbooks(left, right):
+def join_logbooks(left, left_timestamps, right, right_timestamps):
     """
-    Given two trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns the merger of the two.
+    Given two trip logbooks and their associated timestamps, get their merger.
     """
-    # Figure out what our jobs are by trip id key.
-    left_keys = set(left.keys())
-    right_keys = set(right.keys())
+    # Trivial cases.
+    if len(right) == 0:
+        return left
+    if len(left) == 0:
+        return right
 
-    mutual_keys = left_keys.intersection(right_keys)
-    left_exclusive_keys = left_keys.difference(mutual_keys)
-    right_exclusive_keys = right_keys.difference(mutual_keys)
+    # There are five kinds of joins that we care about.
+    # (1) complete trips on the left side, just append
+    # (2) complete trips on the right side, just append
+    # (3) incomplete trips on the left side that do not appear on the right, these are cancellations
+    # (4) incomplete trips on the left side that do appear on the right, these are joiners
+    # (5) incomplete trips on the right side that do not appear on the left, just append
+    incomplete_trips_left = [unique_trip_id for unique_trip_id in left\
+        if left[unique_trip_id].action.iloc[-1] == 'EN_ROUTE_TO']
+    left_map = {left[unique_trip_id].trip_id.iloc[0]: unique_trip_id for
+                unique_trip_id in incomplete_trips_left}
+    right_map = {left[unique_trip_id].trip_id.iloc[0]: None for 
+                 unique_trip_id in incomplete_trips_left}
+    first_right_timestamp = np.min([*(itertools.chain(right_timestamps.values()))])
 
-    # Build out non-intersecting trips.
-    result = dict()
-    for key in left_exclusive_keys:
-        result[key] = left[key]
-    for key in right_exclusive_keys:
-        result[key] = right[key]
+    # determine candidate right trips based on trip_id match
+    # pick the one which appears in the first timestamp included in the right time slice
+    # and run _join_trip_logs on that matched object
+    # if no such trip exists, this is a cancellation, so perform the requisite op
 
-    # Build out (join) intersecting trips.
-    for key in mutual_keys:
-        result[key] = _join_trip_logs(left[key], right[key])
+    for unique_trip_id_right in right:
+        right_trip = right[unique_trip_id_right]
+        trip_id = right_trip.trip_id.iloc[0]
 
-    return result
+        # if there is no match we can just append
+        if trip_id not in left_map:
+            left[unique_trip_id_right] = right_trip
+            left_timestamps[unique_trip_id_right] = right_timestamps[unique_trip_id_right]
+
+        # if there is a match we need to do more work
+        elif (trip_id in left_map and
+              right_timestamps[unique_trip_id_right][0] == first_right_timestamp):
+            assert right_map[trip_id] is None
+            right_map[trip_id] = right[unique_trip_id_right]
+
+    # for trips that matched, perform the merge
+    for trip_id in right_map:
+        unique_trip_id_left = left_map[trip_id]
+        trip_data_right = right_map[trip_id]
+        left[left_map[trip_id]] = _join_trip_logs(left[unique_trip_id_left], trip_data_right)
+        left_timestamps[unique_trip_id_left] =\
+            left_timestamps[unique_trip_id_left] + right_timestamps[unique_trip_id_right]
+        del left_map[trip_id]
+
+    # finalize trips that were incomplete in the left and also didn't appear in the right
+    # this is whatever's left that's in the left_map after joins are done
+    for trip_id in left_map:
+        unique_trip_id = left_map[trip_id]
+        left[unique_trip_id] = _finish_trip(left[unique_trip_id], first_right_timestamp)
+
+    return left, left_timestamps
 
 
 def _join_trip_logs(left, right):
@@ -513,9 +556,6 @@ def _join_trip_logs(left, right):
 
     In such cases recovering a full(er) record requires merging these two logs together. Here we implement this
     operation.
-
-    This method, the core of merge_trip_logbooks, is an operational necessity, as a day's worth of raw GTFS-R
-    messages at minutely resolution eats up 12 GB of RAM or more.
     """
     # Order the frames so that the earlier one is on the left.
     left_start, right_start = left['latest_information_time'].min(), right['latest_information_time'].min()
@@ -585,4 +625,5 @@ def _join_trip_logs(left, right):
 
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
+    join = join.assign(latest_information_time=join.latest_information_time.astype(int))
     return join
