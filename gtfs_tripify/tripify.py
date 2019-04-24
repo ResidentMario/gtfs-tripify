@@ -301,6 +301,9 @@ def actionify(trip_message, vehicle_message, timestamp):
 
     action_log = pd.DataFrame(loglist, columns=['trip_id', 'route_id', 'information_time', 'action', 'stop_id',
                                               'time_assigned'])
+    # base is a single-typed numpy array which converts the information_time input to dtype `U<14`
+    # so we have to convert it back before returning
+    action_log = action_log.assign(information_time=action_log.information_time.astype(int))
     return action_log
 
 
@@ -342,7 +345,7 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
                 .groupby('information_time')
                 .first()
                 .reset_index())
-    timestamps = key_data.information_time.values
+    timestamps = key_data.information_time.values.tolist()
 
     # Get the complete (synthetic) stop list.
     stops = synthesize_route([list(log['stop_id'].unique()) for log in tripwise_action_logs])
@@ -472,77 +475,77 @@ def logify(updates):
     return logbook, timestamps
 
 
-def merge_logbooks(logbooks):
+def merge_logbooks(logbook_tuples):
     """
-    Given a list of trip logbooks, get their merger.
+    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...], merge them.
     """
     left = dict()
-    for right in logbooks:
-        left = _join_logbooks(left, right)
-    return left
+    left_timestamps = dict()
+    for (right, right_timestamps) in logbook_tuples:
+        left, left_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
+    return left, left_timestamps
 
 
-# TODO: rewrite this.
-def _join_logbooks(left, left_timestamps, right, right_timestamps):
+def join_logbooks(left, left_timestamps, right, right_timestamps):
     """
     Given two trip logbooks and their associated timestamps, get their merger.
     """
+    # Trivial cases.
+    if len(right) == 0:
+        return left
+    if len(left) == 0:
+        return right
+
     # There are five kinds of joins that we care about.
     # (1) complete trips on the left side, just append
     # (2) complete trips on the right side, just append
     # (3) incomplete trips on the left side that do not appear on the right, these are cancellations
     # (4) incomplete trips on the left side that do appear on the right, these are joiners
     # (5) incomplete trips on the right side that do not appear on the left, just append
-    incomplete_trips_left = [left[unique_trip_id] for unique_trip_id in left\
+    incomplete_trips_left = [unique_trip_id for unique_trip_id in left\
         if left[unique_trip_id].action.iloc[-1] == 'EN_ROUTE_TO']
-    left_map = {trip.trip_id.iloc[0]: trip for trip in incomplete_trips_left}
-    right_map = {trip.trip_id.iloc[0]: None for trip in incomplete_trips_left}
-    first_right_timestamp = min(itertools.chain(right_timestamps.values()))
+    left_map = {left[unique_trip_id].trip_id.iloc[0]: unique_trip_id for
+                unique_trip_id in incomplete_trips_left}
+    right_map = {left[unique_trip_id].trip_id.iloc[0]: None for 
+                 unique_trip_id in incomplete_trips_left}
+    first_right_timestamp = np.min([*(itertools.chain(right_timestamps.values()))])
 
     # determine candidate right trips based on trip_id match
     # pick the one which appears in the first timestamp included in the right time slice
     # and run _join_trip_logs on that matched object
     # if no such trip exists, this is a cancellation, so perform the requisite op
 
-    for unique_trip_id in right:
-        trip = right[unique_trip_id]
-        trip_id = trip.trip_id.iloc[0]
+    for unique_trip_id_right in right:
+        right_trip = right[unique_trip_id_right]
+        trip_id = right_trip.trip_id.iloc[0]
 
         # if there is no match we can just append
         if trip_id not in left_map:
-            left[unique_trip_id] = trip
+            left[unique_trip_id_right] = right_trip
+            left_timestamps[unique_trip_id_right] = right_timestamps[unique_trip_id_right]
 
         # if there is a match we need to do more work
         elif (trip_id in left_map and
-              right_timestamps[unique_trip_id][0] == first_right_timestamp):
+              right_timestamps[unique_trip_id_right][0] == first_right_timestamp):
             assert right_map[trip_id] is None
-            right_map[trip_id] == trip
+            right_map[trip_id] = right[unique_trip_id_right]
 
-    import pdb; pdb.set_trace()
-    return left
+    # for trips that matched, perform the merge
+    for trip_id in right_map:
+        unique_trip_id_left = left_map[trip_id]
+        trip_data_right = right_map[trip_id]
+        left[left_map[trip_id]] = _join_trip_logs(left[unique_trip_id_left], trip_data_right)
+        left_timestamps[unique_trip_id_left] =\
+            left_timestamps[unique_trip_id_left] + right_timestamps[unique_trip_id_right]
+        del left_map[trip_id]
 
+    # finalize trips that were incomplete in the left and also didn't appear in the right
+    # this is whatever's left that's in the left_map after joins are done
+    for trip_id in left_map:
+        unique_trip_id = left_map[trip_id]
+        left[unique_trip_id] = _finish_trip(left[unique_trip_id], first_right_timestamp)
 
-    # breakpoint here
-    # # Figure out what our jobs are by `trip_id`.
-    # left_keys = set(left.keys())
-    # right_keys = set(right.keys())
-
-    # mutual_keys = left_keys.intersection(right_keys)
-    # left_exclusive_keys = left_keys.difference(mutual_keys)
-    # right_exclusive_keys = right_keys.difference(mutual_keys)
-
-    # # Build out non-intersecting trips.
-    # result = dict()
-    # for key in left_exclusive_keys:
-    #     result[key] = left[key]
-    # for key in right_exclusive_keys:
-    #     result[key] = right[key]
-
-    # # Build out (join) intersecting trips.
-    # for key in mutual_keys:
-    #     result[key] = _join_trip_logs(left[key], right[key])
-
-    # return result
+    return left, left_timestamps
 
 
 def _join_trip_logs(left, right):
@@ -622,4 +625,5 @@ def _join_trip_logs(left, right):
 
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
+    join = join.assign(latest_information_time=join.latest_information_time.astype(int))
     return join

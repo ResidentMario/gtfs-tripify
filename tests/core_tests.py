@@ -10,7 +10,6 @@ import collections
 import numpy as np
 import pandas as pd
 
-import sys; sys.path.append("../")
 import gtfs_tripify as gt
 
 
@@ -552,10 +551,10 @@ class TestCorrectFeed(unittest.TestCase):
         assert len(feed['entity']) == 0
 
 
-def create_mock_action_log(actions=None, stops=None, information_time=0):
+def create_mock_action_log(actions=None, stops=None, information_time=0, trip_id=None):
     length = len(actions)
     return pd.DataFrame({
-        'trip_id': ['TEST'] * length,
+        'trip_id': ['TEST'] * length if trip_id is None else [trip_id] * length,
         'route_id': [1] * length,
         'action': actions,
         'stop_id': ['999X'] * length if stops is None else stops,
@@ -886,8 +885,106 @@ class TripLogbookTests(unittest.TestCase):
         logbook, _ = gt.logify([self.log_0, self.log_1])
         assert len(logbook) == 94
 
-    # def test_logbook_merge(self):
-    #     left = gt.logify([self.log_0])
-    #     right = gt.logify([self.log_1])
-    #     import pdb; pdb.set_trace()
-    #     gt.merge_logbooks([left, right])
+    def test_logbook_join(self):
+        left, left_timestamps = gt.logify([self.log_0])
+        right, right_timestamps = gt.logify([self.log_1])
+
+        result, result_timestamps = gt.join_logbooks(left, left_timestamps, right, right_timestamps)
+        assert len(result) == 94
+        assert result.keys() == left.keys()  # only true in this simple case
+        assert (result[list(result.keys())[0]].head(1) !=
+                left[list(result.keys())[0]].head(1)).any().any()
+        assert len(result_timestamps) == 94
+        assert all([result_timestamps[uid] == [1463025455, 1463025494] for uid in result_timestamps])
+
+
+class LogbookJoinLogicTests(unittest.TestCase):
+    """
+    These tests make sure that the logbook join logic is correct.
+    """
+    def test_trivial_join(self):
+        """In the trivial case one or the other or both logbooks are actually empty."""
+        information_time = 0
+        actions = create_mock_action_log(
+            actions=['STOPPED_AT', 'STOPPED_AT'],
+            information_time=information_time
+        )
+        trip = gt.tripify([actions])[0]
+        logbook = {'uuid': trip}  # as would be returned by gt.logify
+        timestamps = {'uuid': [information_time]}
+
+        # empty right and nonempty left
+        empty_logbook, empty_timestamps = pd.DataFrame(columns=trip.columns), dict()
+        result = gt.join_logbooks(logbook, timestamps, empty_logbook, empty_timestamps)
+        assert result.keys() == logbook.keys()
+
+        # empty left and nonempty right
+        result = gt.join_logbooks(empty_logbook, empty_timestamps, logbook, timestamps)
+        assert result.keys() == logbook.keys()
+
+        # both empty
+        assert len(
+            gt.join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
+        ) == 0
+
+    def test_only_complete_trips(self):
+        """The simplest non-trivial case: trips on either side are complete and just get merged in."""
+        actions_1 = create_mock_action_log(
+            actions=['STOPPED_AT'], information_time=1, trip_id='TRIP_1'
+        )
+        actions_2 = create_mock_action_log(
+            actions=['STOPPED_AT'], information_time=2, trip_id='TRIP_2'
+        )
+        left_logbook = {'uuid1': gt.tripify([actions_1])[0]}
+        left_timestamps = {'uuid1': [1]}
+        right_logbook = {'uuid2': gt.tripify([actions_2])[0]}
+        right_timestamps = {'uuid2': [2]}
+
+        result, result_timestamps =\
+            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+        assert list(result.keys()) == ['uuid1', 'uuid2']
+        assert all(result['uuid1'].trip_id == 'TRIP_1') and all(result['uuid2'].trip_id == 'TRIP_2')
+        assert len(result_timestamps.keys()) == 2
+
+    def test_incomplete_completable_trips(self):
+        """
+        There is a trip on the left that is incomplete, but completeable (or at least extendable)
+        using information on the right.
+        """
+        actions_1 = create_mock_action_log(
+            actions=['EN_ROUTE_TO', 'EN_ROUTE_TO'], information_time=1, stops=['500X', '501X']
+        )
+        actions_2 = create_mock_action_log(
+            actions=['STOPPED_AT'], information_time=2, stops=['501X']
+        )
+        left_logbook = {'uuid1': gt.tripify([actions_1])[0]}
+        left_timestamps = {'uuid1': [1]}
+        right_logbook = {'uuid2': gt.tripify([actions_2])[0]}
+        right_timestamps = {'uuid2': [2]}
+
+        # left log is en-route to two stops, right log is stopped at second of the two stops
+        # expect logic to correctly mark first station STOPPED_OR_SKIPPED and correctly mark
+        # second station STOPPED_AT
+        result, result_timestamps =\
+            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+        assert len(result) == 1
+        assert result_timestamps['uuid1'] == [1, 2]
+        assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED', 'STOPPED_AT']
+
+    def test_incomplete_uncompletable_trip(self):
+        """
+        There is a trip on the left that is incomplete, but no new information is offered on
+        the right.
+        """
+        actions = create_mock_action_log(actions=['EN_ROUTE_TO'], information_time=1)
+        log = gt.tripify([actions])[0]
+        left_logbook, right_logbook = {'uuid1': log}, {'uuid2': log}
+        left_timestamps, right_timestamps = {'uuid1': [0]}, {'uuid2': [1]}
+
+        result, result_timestamps =\
+            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+        
+        # latest_information_time should change, and it should match the newer value
+        assert len(result) == 1
+        result['uuid1'].latest_information_time.values.tolist() == [1]
+        result['uuid1'].action.values.tolist() == ['EN_ROUTE_TO']
