@@ -1,16 +1,8 @@
 # gtfs-tripify ![t](https://img.shields.io/badge/status-alpha-red.svg)
 
-The [Metropolitan Transit Authority](https://en.wikipedia.org/wiki/Metropolitan_Transportation_Authority) is the 
-primary public transportation authority for the greater New York City region. It provides real-time information about 
-its buses, subway trains, and track trains using a bundle of what are called [GTFS-Realtime 
-feeds](https://developers.google.com/transit/gtfs-realtime/). Each GTFS-RT feed represents a snapshot of a slice of the 
-MTA's service jurisdiction at a certain timestamp.
+Many major transit municipalities in the United States public realtime information about the state of their systems using a common format known as a [GTFS-Realtime feed](https://developers.google.com/transit/gtfs-realtime/). This is the information that the [Metropolitan Transit Authority](https://en.wikipedia.org/wiki/Metropolitan_Transportation_Authority), for example, uses to power its arrival countdown clocks on station platforms.
 
-`gtfs-tripify` is a Python package for turning streams of GTFS-Realtime messages into a "trip log" of train arrival and 
-departure times. The result is the ground truth history of arrivals and departures of all trains included in the 
-inputted GTFS-RT feeds.
-
-[For more on how this package came to be, read this blog post](http://www.residentmar.io/2018/01/29/gtfs-tripify.html).
+`gtfs-tripify` is a Python package for turning streams of GTFS-Realtime messages into a "trip log" of train arrival and departure times. The result is the ground truth history of arrivals and departures of all trains included in the inputted GTFS-RT feeds.
 
 ## Quickstart
 
@@ -20,12 +12,10 @@ Begin by running the following to install this package on your local machine:
 pip install git+git://github.com/ResidentMario/gtfs-tripify.git@master
 ```
 
-First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format 
-encoded using a Google data encoding known as Protobuf. The easiest way to access the data is to use the default 
-decoder Google has written for us, the [`gtfs_realtime_bindings` package](https://github.com/google/gtfs-realtime-bindings/tree/master/python). That's what we do below:
+First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf. The easiest way to access the data is to use the default decoder Google has written for us, the [`gtfs_realtime_bindings` package](https://github.com/google/gtfs-realtime-bindings/tree/master/python). That's what we do below:
 
 ```python
-# Load GTFS-Realtime feeds. 
+# Load GTFS-Realtime feeds.
 # For this example we will use publicly archived MTA data.
 import requests
 response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
@@ -46,30 +36,29 @@ message3.ParseFromString(response3.content)
 stream = [message1, message2, message3]
 ```
 
-Now we have a bunch of `gtfs_realtime_pb2.FeedMessage` object, each of which is a single decompressed GTFS-Realtime 
-feed message (or just "message" for short). Each of these feeds represents the state of the same wired-up slice of the MTA transit network at a different but consecutive point in time.
+Now we have a bunch of `gtfs_realtime_pb2.FeedMessage` object, each of which is a single decompressed GTFS-Realtime feed message (or just "message" for short). Each of these feeds represents the state of the same wired-up slice of the MTA transit network at a different but consecutive point in time.
 
 This is where `gtfs_tripify` comes in:
 
 ```python
 import gtfs_tripify as gt
-logbook = gt.logify(gt.dictify(stream))
+logbook, logbook_timestamps = gt.logify(stream)
 ```
 
 Now we have a `logbook`. If we inspect it we see that it is a `dict` with the following format:
 
 ```python
 {
-    '047850_2..S05R_0': <pandas.DataFrame object>,
-    '051350_2..N01R_0': <pandas.DataFrame object>,
-    [...]
+    '87a19e7a-66dd-11e9-b1fe-8c8590adc94b': <pandas.DataFrame object>,
+    '87a19db4-66dd-11e9-a0e0-8c8590adc94b': <pandas.DataFrame object>,
+    ...
 }
 ```
 
-Each of the dictionary keys is a unique ID assigned to a particular trip. The contents of each trip label is a `trip log`.
+Each entry in the `logbook` is a `log`. Each log provides information about a single train trip in the system.
 
 ```python
-print(logbook['047850_2..S05R_0'])
+print(logbook['87a19e7a-66dd-11e9-b1fe-8c8590adc94b'])
 ```
 
 This looks something like this:
@@ -77,25 +66,25 @@ This looks something like this:
 ```python
 
           trip_id route_id              action minimum_time maximum_time  \
-0  047850_2..S05R        2  STOPPED_OR_SKIPPED   1410960621   1410961221   
-1  047850_2..S05R        2  STOPPED_OR_SKIPPED   1410960621   1410961221   
-2  047850_2..S05R        2          STOPPED_AT   1410960621          nan   
-3  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
-4  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
-5  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
-6  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
-7  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
-8  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan   
+0  047850_2..S05R        2  STOPPED_OR_SKIPPED   1410960621   1410961221
+1  047850_2..S05R        2  STOPPED_OR_SKIPPED   1410960621   1410961221
+2  047850_2..S05R        2          STOPPED_AT   1410960621          nan
+3  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
+4  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
+5  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
+6  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
+7  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
+8  047850_2..S05R        2         EN_ROUTE_TO   1410961221          nan
 
-  stop_id latest_information_time  
-0    238S              1410961221  
-1    239S              1410961221  
-2    241S              1410961221  
-3    242S              1410961221  
-4    243S              1410961221  
-5    244S              1410961221  
-6    245S              1410961221  
-7    246S              1410961221  
+  stop_id latest_information_time
+0    238S              1410961221
+1    239S              1410961221
+2    241S              1410961221
+3    242S              1410961221
+4    243S              1410961221
+5    244S              1410961221
+6    245S              1410961221
+7    246S              1410961221
 8    247S              1410961221
 ```
 
@@ -106,13 +95,10 @@ Values are:
 * `trip_id`: The ID assigned to the trip in the GTFS-Realtime record.
 * `route_id`: The ID of the route. In New York City these are easy to read: 2 means this is a number 2 train.
 * `stop_id`: The ID assigned to the stop in question.
-* `action`: The action that the given train took at the given stop. One of `STOPPED_AT`, `STOPPED_OR_SKIPPED`, or 
-`EN_ROUTE_TO` (the latter only occurs if the trip is still in progress).
-* `minimum_time`: The minimum time at which the train pulled into the station. May be `NaN`. This time is a [Unix 
-timestamp](https://en.wikipedia.org/wiki/Unix_time).
+* `action`: The action that the given train took at the given stop. One of `STOPPED_AT`, `STOPPED_OR_SKIPPED`, or `EN_ROUTE_TO` (the latter only occurs if the trip is still in progress).
+* `minimum_time`: The minimum time at which the train pulled into the station. May be `NaN`. This time is a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time).
 * `maximum_time`: The maximum time at which the train pulled out of the station. May be `NaN`. Also a Unix timestamp.
-* `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information 
-pertinent to this record. Also a Unix timestamp.
+* `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.
 
 ## Additional methods
 
@@ -124,4 +110,7 @@ Use the `gt.io.logbooks_to_sql` or `gt.io.stream_to_sql` helper methods to persi
 
 ## Further reading
 
-A technical discussion of the challenges this module solves is available in the following blog post: "[Parsing subway rides with gtfs-tripify](http://www.residentmar.io/2018/01/29/gtfs-tripify.html)".
+I have written two blog posts about the technical challenges and application posibilities of this library:
+
+* "[Parsing subway rides with gtfs-tripify](https://www.residentmar.io/2018/01/29/gtfs-tripify.html)"
+* "[Building an MTA historical train arrival application](https://www.residentmar.io/2018/08/29/subway-explorer.html)"

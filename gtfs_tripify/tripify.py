@@ -440,6 +440,14 @@ def logify(updates):
     Given a list of feed updates, returns a logbook associated with each trip mentioned in those feeds.
     Also returns the set of timestamps covered by the logbook. Output is the tuple (logbook, timestamps).
     """
+    # trivial case
+    if updates == []:
+        return dict()
+
+    # Accept either raw Protobuf updates or already-parsed dict updates.
+    if not isinstance(updates[0], dict):
+        updates = [dictify(update) for update in updates]
+
     last_timestamp = updates[-1]['header']['timestamp']
 
     # collate generates `unique_trip_id` values for each trip and keys them to message collections
@@ -477,7 +485,8 @@ def logify(updates):
 
 def merge_logbooks(logbook_tuples):
     """
-    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...], merge them.
+    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in time-sort order,
+    perform a merge.
     """
     left = dict()
     left_timestamps = dict()
