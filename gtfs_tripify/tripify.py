@@ -4,21 +4,21 @@ from collections import defaultdict
 import pandas as pd
 from gtfs_tripify.utils import synthesize_route
 import warnings
+import uuid
 
 
-def dictify(feed):
+def dictify(buffer):
     """
-    Parses a GTFS-Realtime feed that has been loaded into a `gtfs_realtime_pb2` object into a native dictionary
-    representation.
+    Parses a GTFS-Realtime Protobuf into a Python dict, which is more ergonomic to work with.
+    Fields not in the GTFS-RT schema are ignored.
     """
-    _feed = feed
-    feed = {
-        'header': {'gtfs_realtime_version': _feed.header.gtfs_realtime_version,
-                   'timestamp': _feed.header.timestamp},
+    update = {
+        'header': {'gtfs_realtime_version': buffer.header.gtfs_realtime_version,
+                   'timestamp': buffer.header.timestamp},
         'entity': []
     }
 
-    # Helper functions for determining message types in the gtfs_realtime_pb2` object.
+    # Helper functions for determining GTFS-RT message types.
     def is_vehicle_update(message):
         return str(message.trip_update.trip.route_id) == '' and str(message.alert) == ''
 
@@ -28,7 +28,7 @@ def dictify(feed):
     def is_trip_update(message):
         return not is_vehicle_update(message) and not is_alert(message)
 
-    # Helper function for assigning status.
+    # Helper function for mapping dictionary-encoded statuses into human-readable strings.
     def munge_status(status_code):
         statuses = {
             0: 'INCOMING_AT',
@@ -37,162 +37,193 @@ def dictify(feed):
         }
         return statuses[status_code]
 
-    for _message in _feed.entity:
-        if is_trip_update(_message):
-            message = {
-                'id': _message.id,
+    for message in buffer.entity:
+        if is_trip_update(message):
+            parsed_message = {
+                'id': message.id,
                 'trip_update': {
                     'trip': {
-                        'trip_id': _message.trip_update.trip.trip_id,
-                        'start_date': _message.trip_update.trip.start_date,
-                        'route_id': _message.trip_update.trip.route_id
+                        'trip_id': message.trip_update.trip.trip_id,
+                        'start_date': message.trip_update.trip.start_date,
+                        'route_id': message.trip_update.trip.route_id
                     },
                     'stop_time_update': [
                         {
                             'stop_id': _update.stop_id,
                             'arrival': np.nan if str(_update.arrival) == "" else _update.arrival.time,
                             'departure': np.nan if str(_update.departure) == "" else _update.departure.time
-                        } for _update in _message.trip_update.stop_time_update]
+                        } for _update in message.trip_update.stop_time_update]
                 },
                 'type': 'trip_update'
             }
-            feed['entity'].append(message)
-        elif is_vehicle_update(_message):
-            message = {
-                'id': _message.id,
+            update['entity'].append(parsed_message)
+        elif is_vehicle_update(message):
+            parsed_message = {
+                'id': message.id,
                 'vehicle': {
                     'trip': {
-                        'trip_id': _message.vehicle.trip.trip_id,
-                        'start_date': _message.vehicle.trip.start_date,
-                        'route_id': _message.vehicle.trip.route_id
+                        'trip_id': message.vehicle.trip.trip_id,
+                        'start_date': message.vehicle.trip.start_date,
+                        'route_id': message.vehicle.trip.route_id
                     },
-                    'current_stop_sequence': _message.vehicle.current_stop_sequence,
-                    'current_status': munge_status(_message.vehicle.current_status),
-                    'timestamp': _message.vehicle.timestamp,
-                    'stop_id': _message.vehicle.stop_id
+                    'current_stop_sequence': message.vehicle.current_stop_sequence,
+                    'current_status': munge_status(message.vehicle.current_status),
+                    'timestamp': message.vehicle.timestamp,
+                    'stop_id': message.vehicle.stop_id
                 },
                 'type': 'vehicle_update'
             }
-            feed['entity'].append(message)
+            update['entity'].append(parsed_message)
         else:  # is_alert
-            message = {
-                'id': _message.id,
+            parsed_message = {
+                'id': message.id,
                 'alert': {
                     'header_text': {
                         'translation': {
-                            # TODO
-                            'text': _message.alert.header_text.translation[0].text
+                            'text': message.alert.header_text.translation[0].text
                         }
                     },
                     'informed_entity': [
                         {
                             'trip_id': _trip.trip.trip_id,
                             'route_id': _trip.trip.route_id
-                        } for _trip in _message.alert.informed_entity]
+                        } for _trip in message.alert.informed_entity]
                 },
                 'type': 'alert'
             }
-            feed['entity'].append(message)
+            update['entity'].append(parsed_message)
 
-    # Correct and warn about feed errors.
-    feed = correct(feed)
-
-    return feed
+    return update
 
 
-def correct(feed):
+def drop_invalid_messages(update):
     """
-    Verifies that the inputted dictified feed has the expected schema. Raises warnings wherever issues are found,
-    and attempts to cure them.
+    Given a feed update (as returned by `dictify`), catch certain non-fatal errors that, though they violate the
+    GTFS-RT spec, are still valid in the Protobuf spec. These are operator errors made by the feed publisher.
+    A warning is raised and the non-conformant messages are dropped.
     """
     # Capture and throw away vehicle updates that do not also have trip updates.
-    vehicle_update_ids = {m['vehicle']['trip']['trip_id'] for m in feed['entity'] if m['type'] == 'vehicle_update'}
-    trip_update_ids = {m['trip_update']['trip']['trip_id'] for m in feed['entity'] if m['type'] == 'trip_update'}
+    vehicle_update_ids = {m['vehicle']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'vehicle_update'}
+    trip_update_ids = {m['trip_update']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'trip_update'}
     trip_update_only_ids = vehicle_update_ids.difference(trip_update_ids)
 
     if len(trip_update_only_ids) > 0:
-        warnings.warn("The trips with IDs {0} are provided vehicle updates but not trip updates in the GTFS-R feed "
-                      "for {1}. These invalid trips were removed from the feed during pre-processing.".format(
-            trip_update_only_ids, feed['header']['timestamp'])
+        warnings.warn("The trips with IDs {0} are provided vehicle updates but not trip updates in the GTFS-R update "
+                      "for {1}. These invalid trips were removed from the update during pre-processing.".format(
+            trip_update_only_ids, update['header']['timestamp'])
         )
-        feed['entity'] = [m for m in feed['entity'] if (m['type'] != 'vehicle_update' or
-                                                        m['vehicle']['trip']['trip_id'] not in trip_update_only_ids)]
+        update['entity'] = [m for m in update['entity'] if (m['type'] != 'vehicle_update' or
+                                                            m['vehicle']['trip']['trip_id'] not in trip_update_only_ids)]
 
     # Capture and throw away messages which have a null (empty string, '') trip id.
     nonalert_ids = vehicle_update_ids | trip_update_ids
     if '' in nonalert_ids:
-        warnings.warn("Some of the messages in the GTFS-R feed for {0} have a null trip id. These invalid messages "
-                      "were removed from the feed during pre-processing.".format(
-            trip_update_only_ids, feed['header']['timestamp'])
+        warnings.warn("Some of the messages in the GTFS-R update for {0} have a null trip id. These invalid messages "
+                      "were removed from the update during pre-processing.".format(
+            update['header']['timestamp'])
         )
-        feed['entity'] = [m for m in feed['entity'] if ((m['type'] == 'vehicle_update' and
-                                                         m['vehicle']['trip']['trip_id'] != "") or
-                                                        (m['type'] == 'trip_update') and
-                                                         m['trip_update']['trip']['trip_id'] != "")]
+        update['entity'] = [m for m in update['entity'] if ((m['type'] == 'vehicle_update' and
+                                                             m['vehicle']['trip']['trip_id'] != "") or
+                                                            (m['type'] == 'trip_update') and
+                                                             m['trip_update']['trip']['trip_id'] != "")]
 
-    return feed
+    return update
 
 
-def _tripsort(feed, include_alerts=False):
+def collate_update(update, include_alerts=False):
     """
-    Sorts the messages a set of dictified feeds into a hash table. Does not handle collisions!
-    """
-    messages = feed['entity']
-    sort = defaultdict(list)
+    Collates the messages in an update into a list with the following shape, which is convenient for
+    further processing:
 
-    def get_trip_ids(message):
+        [
+            {'trip_id': $TRIP_ID, 
+             'trip_update': $TRIP_UPDATE_MESSAGE,
+             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
+             'timestamp': $TIMESTAMP}, 
+            ...
+        ]
+
+    Implementation detail of `collate`.
+    """
+    if include_alerts:
+        raise NotImplementedError
+
+    # initially build a dict keyed in trip_id
+    keymap = defaultdict(dict)
+
+    for message in update['entity']:
+        if message['type'] == 'alert':
+            continue
         if message['type'] == 'trip_update':
-            return [message['trip_update']['trip']['trip_id']]
+            trip_id = message['trip_update']['trip']['trip_id']
+            keymap[trip_id]['trip_update'] = message
         elif message['type'] == 'vehicle_update':
-            return [message['vehicle']['trip']['trip_id']]
-        else:  # alert
-            return [entity['trip_id'] for entity in message['alert']['informed_entity']]
+            keymap[trip_id]['vehicle_update'] = message
 
-    messages = messages if include_alerts else [m for m in messages if m['type'] != 'alert']
-
-    for message in messages:
-        for trip_id in get_trip_ids(message):
-            sort[trip_id].append(message)
-
-    return sort
+    ts = update['header']['timestamp']
+    keymap = {key: {'vehicle_update': None, 'timestamp': ts, **keymap[key]} for key in keymap}
+    return keymap
 
 
-def _feedsort(feeds, include_alerts=False):
+def collate(updates, include_alerts=False):
     """
-    Sorts the messages in a timely list of dictified feeds into a list of trip-id-to-message hash tables. This
-    method handles the Trip ID collisions that occur when a trip ID is recycled within the time span of the feed.
+    Sorts the messages in a list of updates into a nested dict of messages keyed on a unique ID. 
+    Output is in the following format:
+
+    {
+        '$UNIQUE_TRIP_ID': [
+            {'trip_id': $TRIP_ID,
+             'trip_update': $TRIP_UPDATE_MESSAGE,
+             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
+             'timestamp': $TIMESTAMP},
+            ...
+        ],
+        ...
+    }
+
+    Note that the interior message is in the format returned by the `collate_update` subroutine, which 
+    handles collocation *within* an update, whilst this method handles collocation *between* updates.
+
+    This method calculates a UUID for the `unique_trip_id`.
     """
     if include_alerts:
         raise NotImplementedError("Processing alert messages has not been implemented yet.")
 
-    if len(feeds) == 0:
+    if len(updates) == 0:
         return []
 
-    message_tables = [_tripsort(feed, include_alerts=False) for feed in feeds]
-    trip_ids = list(set(itertools.chain(*[table.keys() for table in message_tables])))
+    update_keymaps = [collate_update(update, include_alerts=include_alerts) for update in updates]
+    all_trip_ids = set()
+    for update_keymap in update_keymaps:
+        all_trip_ids.update(set(update_keymap.keys()))
+    all_trip_ids = list(all_trip_ids)
 
-    # x dimension is categorical trip_id, y dimension is time (feed sequence number).
-    containment_matrix = np.concatenate([[np.in1d(trip_ids, list(table.keys()))] for table in message_tables], axis=0)
+    # Build a boolean matrix whose x_dim is trip_id and whose y_dim is time (update sequence number).
+    containment_matrix = np.vstack([np.isin(all_trip_ids, list(update_keymap.keys())) for update_keymap in update_keymaps])
 
-    for i in range(len(trip_ids)):
-        n = 0
-        trip_id, strip = trip_ids[i], containment_matrix[:, i]
-        new_ids = []
+    # Parse the containment matrix to deduplicate trips with the same trip_id. E.g.:
+    #   $TRIP_ID: [True, True, True, False] -> one trip
+    #   $TRIP_ID: [True, True, False, True] -> two trips
+    out = defaultdict(list)
 
-        for contains in strip:
-            if contains:
-                new_ids.append("{0}_{1}".format(trip_id, n))
-            else:
-                new_ids.append(None)
-                n += 1
+    for j in range(len(all_trip_ids)):
+        previous_value = False
+        current_unique_trip_id = str(uuid.uuid1())
+        trip_id, trip_id_time_slice = all_trip_ids[j], containment_matrix[:, j]
 
-        for i, table in enumerate(message_tables):
-            if new_ids[i] is not None:
-                table[new_ids[i]] = table.pop(trip_id)
+        for sequence_number, entry in enumerate(trip_id_time_slice):
+            if entry and previous_value is True:
+                out[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
+            elif entry and previous_value is False:
+                previous_value = True
+                current_unique_trip_id = str(uuid.uuid1())
+                out[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
+            elif not entry and previous_value is True:
+                previous_value = False
             else:
                 continue
 
-    return message_tables
+    return out
 
 
 def actionify(trip_message, vehicle_message, timestamp):
@@ -275,29 +306,20 @@ def actionify(trip_message, vehicle_message, timestamp):
     return action_log
 
 
-def _parse_message_list_into_action_log(messages, timestamp):
+def _parse_message_list_into_action_log(message_collection, timestamp):
     """
-    Parses a list of messages into a single pandas.DataFrame. Internal routine.
+    Parses a list of messages into a single pandas.DataFrame.
     """
 
     actions_list = []
-    nonalerts = [message for message in messages if message['type'] != 'alert']
 
-    for i in range(0, len(nonalerts)):
-        trip_update = messages[i]
+    for message in message_collection:
+        trip_update = message['trip_update']
+        vehicle_update = message['vehicle_update']
 
-        # Selectively loop through trip updates.
-        if trip_update['type'] == 'vehicle_update':
-            pass
-
-        # If the entry is a trip update, find the associated vehicle update, if it exists, and pass that to the list.
-        else:
-            has_vehicle_update = False if (i == len(messages) - 1) else (messages[i + 1]['type'] == 'vehicle_update')
-            vehicle_update = messages[i + 1] if has_vehicle_update else None
-
-            actions = actionify(trip_update, vehicle_update, timestamp)
-            actions_list.append(actions)
-
+        actions = actionify(trip_update, vehicle_update, timestamp)
+        actions_list.append(actions)
+    
     return pd.concat(actions_list)
 
 
@@ -409,57 +431,27 @@ def _finish_trip(trip_log, timestamp):
     return trip_log
 
 
-def logify(feeds):
+def logify(updates):
     """
-    Given a list of feeds, returns a hash table of trip logs associated with each trip mentioned in those feeds.
+    Given a list of feed updates, returns a logbook associated with each trip mentioned in those feeds.
     """
-    timestamps = [feed['header']['timestamp'] for feed in feeds]
+    last_timestamp = updates[-1]['header']['timestamp']
 
-    # The trip IDs that are assigned by the MTA are unique during their lifetime, but get recycled over the course of
-    # the day. So for example if a trip is assigned the trip ID `000000_L..S`, and that trip ends, that trip ID is
-    # immediately available for reassignment to the next L train to be added to the schedule. Indeed, it may be the
-    # first ID *in line* for reassignment!
-    #
-    # We have to perform our own heuristic to bifurcate non-contiguous trips. The marker that we will use is the trip
-    # messages appearing non-contiguously. This is *not* a complete solution, as it is technically possible for a
-    # trip id to be released and reused inside of the "update window". However, it's difficult to do better. We will
-    # see whether or not this works well enough though.
-    message_tables = _feedsort(feeds)
-    trip_ids = set(itertools.chain(*[table.keys() for table in message_tables]))
+    # collate generates `unique_trip_id` values for each trip and keys them to message collections
+    message_collections = collate(updates)
 
     ret = dict()
 
-    for trip_id in trip_ids:
+    for unique_trip_id in message_collections:
+        message_collection = message_collections[unique_trip_id]
         actions_logs = []
-        trip_began = False
-        trip_terminated = False
-        trip_terminated_time = None
+        last_tripwise_timestamp = message_collection[-1]['timestamp']
+        trip_terminated = message_collection[-1]['timestamp'] < last_timestamp
 
-        for i, table in enumerate(message_tables):
-
-            # Is the trip present in this table at all?
-            if not table[trip_id]:
-                # If the trip hasn't been planned yet, and will simply appear in a later trip update, do nothing.
-                if not trip_began:
-                    pass
-
-                # If the trip has been planned already, and doesn't exist in the current table, then it must have
-                # been removed. This implies that this trip terminated in the interceding time. Store this
-                # information for later.
-                else:
-                    trip_terminated = True
-                    trip_terminated_time = timestamps[i]
-
-                continue
-            else:
-                trip_began = True
-
-            action_log = _parse_message_list_into_action_log(table[trip_id], timestamps[i])
-            actions_logs.append(action_log)
-
+        action_log = _parse_message_list_into_action_log(message_collection, last_tripwise_timestamp)
+        actions_logs.append(action_log)
         trip_log = tripify(actions_logs)
-
-        # Coerce types.
+        # TODO: is this necessary? Coerce types.
         trip_log = trip_log.assign(
             minimum_time=trip_log.minimum_time.astype('float'),
             maximum_time=trip_log.maximum_time.astype('float'),
@@ -468,13 +460,15 @@ def logify(feeds):
 
         # If the trip was terminated sometime in the course of these feeds, update the trip log accordingly.
         if trip_terminated:
+            trip_terminated_time = last_tripwise_timestamp
             trip_log = _finish_trip(trip_log, trip_terminated_time)
 
-        ret[trip_id] = trip_log
+        ret[unique_trip_id] = trip_log
 
     return ret
 
 
+# TODO: the routines below are unused, remove them?
 def merge_logbooks(logbooks):
     """
     Given a list of trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns their merger.

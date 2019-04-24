@@ -499,7 +499,7 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.correct(feed)
+            feed = gt.drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
@@ -530,7 +530,7 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.correct(feed)
+            feed = gt.drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
@@ -547,7 +547,7 @@ class TestCorrectFeed(unittest.TestCase):
                                                  'start_date': ''}}}]}
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.correct(feed)
+            feed = gt.drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
