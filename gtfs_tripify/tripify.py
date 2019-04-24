@@ -323,6 +323,8 @@ def _parse_message_list_into_action_log(message_collection, timestamp):
     return pd.concat(actions_list)
 
 
+# TODO: add a key to the log with the list of timestamps associated with the log. 
+# This is needed for merge, and helpful metadata to have in general.
 def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     """
     Given a list of action logs associated with a particular trip, returns the result of their merger: a single trip
@@ -468,10 +470,9 @@ def logify(updates):
     return ret
 
 
-# TODO: the routines below are unused, remove them?
 def merge_logbooks(logbooks):
     """
-    Given a list of trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns their merger.
+    Given a list of trip logbooks, get their merger.
     """
     left = dict()
     for right in logbooks:
@@ -481,28 +482,59 @@ def merge_logbooks(logbooks):
 
 def _join_logbooks(left, right):
     """
-    Given two trip logbooks (as returned by `parse_feeds_into_trip_logbooks`), returns the merger of the two.
+    Given two trip logbooks, get their merger.
     """
-    # Figure out what our jobs are by trip id key.
-    left_keys = set(left.keys())
-    right_keys = set(right.keys())
+    # There are five kinds of joins that we care about.
+    # (1) complete trips on the left side, just append
+    # (2) complete trips on the right side, just append
+    # (3) incomplete trips on the left side that do not appear on the right, these are cancellations
+    # (4) incomplete trips on the left side that do appear on the right, these are joiners
+    # (5) incomplete trips on the right side that do not appear on the left, just append
+    incomplete_trips_left = [left[unique_trip_id] for unique_trip_id in left\
+        if left[unique_trip_id].action.iloc[-1] == 'EN_ROUTE_TO']
+    left_map = {trip.trip_id.iloc[0]: trip for trip in incomplete_trips_left}
+    right_map = {trip.trip_id.iloc[0]: [] for trip in incomplete_trips_left}
 
-    mutual_keys = left_keys.intersection(right_keys)
-    left_exclusive_keys = left_keys.difference(mutual_keys)
-    right_exclusive_keys = right_keys.difference(mutual_keys)
+    # determine candidate right trips based on trip_id match
+    # pick the one which appears in the first timestamp included in the right time slice
+    # and run _join_trip_logs on that matched object
+    # if no such trip exists, this is a cancellation, so perform the requisite op
 
-    # Build out non-intersecting trips.
-    result = dict()
-    for key in left_exclusive_keys:
-        result[key] = left[key]
-    for key in right_exclusive_keys:
-        result[key] = right[key]
+    for unique_trip_id in right:
+        trip = right[unique_trip_id]
+        trip_id = trip.trip_id.iloc[0]
 
-    # Build out (join) intersecting trips.
-    for key in mutual_keys:
-        result[key] = _join_trip_logs(left[key], right[key])
+        # if there is no match we can just append
+        if trip_id not in left_map
+            left[unique_trip_id] = trip
+        # if there is a match we need to do more work
+        elif trip_id in left_map and True # and the right start time is first-frame, but how to determine this?
+            right_map[trip_id].append(trip)
 
-    return result
+    return left
+
+
+    # breakpoint here
+    # # Figure out what our jobs are by `trip_id`.
+    # left_keys = set(left.keys())
+    # right_keys = set(right.keys())
+
+    # mutual_keys = left_keys.intersection(right_keys)
+    # left_exclusive_keys = left_keys.difference(mutual_keys)
+    # right_exclusive_keys = right_keys.difference(mutual_keys)
+
+    # # Build out non-intersecting trips.
+    # result = dict()
+    # for key in left_exclusive_keys:
+    #     result[key] = left[key]
+    # for key in right_exclusive_keys:
+    #     result[key] = right[key]
+
+    # # Build out (join) intersecting trips.
+    # for key in mutual_keys:
+    #     result[key] = _join_trip_logs(left[key], right[key])
+
+    # return result
 
 
 def _join_trip_logs(left, right):
@@ -513,9 +545,6 @@ def _join_trip_logs(left, right):
 
     In such cases recovering a full(er) record requires merging these two logs together. Here we implement this
     operation.
-
-    This method, the core of merge_trip_logbooks, is an operational necessity, as a day's worth of raw GTFS-R
-    messages at minutely resolution eats up 12 GB of RAM or more.
     """
     # Order the frames so that the earlier one is on the left.
     left_start, right_start = left['latest_information_time'].min(), right['latest_information_time'].min()
