@@ -102,11 +102,22 @@ Values are:
 
 ## Additional methods
 
-If you want *only* trips which are complete, not ones that are in progress, you may use the `gtfs_tripify.utils.discard_partial_logs` method to trim trips that were still en route to their final destination in your data stream.
+`gtfs_tripify` will by default provide as much information as possible, and will include both incomplete trips (trips which are still in progress as of the last message in the stream) and cancelled stops (stops that did not occur due to trip cancellations). You may prune these from the logbook using `gt.utils.cut_cancellations` and `gt.utils.discard_partial_logs`, respectively:
 
-Stops that did not occur due to trips being cancelled are not removed by default. Use `gtfs_tripify.utils.discard_partial_logs` to do so. This is highly recommended for most routes, but will not work for shuttle services (train lines with only two possible stops).
+```python
+len(logbook)  # 313 logs included
+sum(len(log) for log in logbook)  # 11268 log entries included
 
-Use the `gt.io.logbooks_to_sql` or `gt.io.stream_to_sql` helper methods to persist the data to a SQLite database. Note that these methods support concatenating to a database, but due to implementation details cannot deduplicate data. It is your responsibility to ensure that trips you write to the database using these methods are unique!
+logbook = gt.utils.cut_cancellations(logbook)
+logbook = gt.utils.discard_partial_logs(logbook)
+
+len(logbook)  # 245 logs remaining
+sum(len(log) for log in logbook)  # 8820 log entries remaining
+```
+
+Each logbook naturaly represents all stops in a system for a specific "time slice". You can construct a larger logbook out of smaller ones using `gt.merge_logbooks([(logbook_1, logbook_1_timestamps), (logbook_2, logbook_2_timestamps), ...])`. Note that the logbooks must be in *sorted contiguous order*. Each logbook must address adjacent time slices, e.g. `[1:00, 1:59], [2:00, 2:59], [3:00, 3:59], ...`.
+
+Use the `gt.io.logbooks_to_sql` or `gt.io.stream_to_sql` helper methods to persist the data to a SQLite database. **Note**: these methods are currently under renovation.
 
 ## Further reading
 

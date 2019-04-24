@@ -988,3 +988,5 @@ class LogbookJoinLogicTests(unittest.TestCase):
         assert len(result) == 1
         result['uuid1'].latest_information_time.values.tolist() == [1]
         result['uuid1'].action.values.tolist() == ['EN_ROUTE_TO']
+
+    # TODO: test incomplete cancelled case

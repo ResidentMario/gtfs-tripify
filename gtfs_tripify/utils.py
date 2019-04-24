@@ -105,32 +105,39 @@ def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)
 # HEURISTICS #
 ##############
 
-def cut_cancellations(log):
+def cut_cancellations(logbook):
     """
     Heuristically cuts stops that almost certainly didn't happen do to trip cancellations. I 
     refer to this as the "cut-cancellation" heuristic.
 
-    Returns a minified log containing only trips that almost assuredly happened.
+    Returns a minified logbook containing only trips that almost assuredly happened.
     """
-    # Immediately return if the log is empty.
-    if len(log) == 0:
-        return log
-    # Heuristically return an empty log if there are zero confirmed stops in the log.
-    elif ~(log.action == "STOPPED_AT").any() and len(log.latest_information_time.unique()) == 1:
-        return log.head(0)
-    else:
-        # Find the last definite stop.
-        last_definite_stop = (log.latest_information_time ==\
-            log.latest_information_time.unique()[-1]).idxmax() - 1
-        # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same 
-        # `LATEST_INFORMATION_TIME`.
-        suspicious_block = log.tail(-last_definite_stop - 1)
-        if len(suspicious_block) == 1:
+    def cut_cancellations_log(log):
+        # Immediately return if the log is empty.
+        if len(log) == 0:
             return log
-        elif len(suspicious_block['latest_information_time'].unique()) == 1:
-            return log.head(last_definite_stop + 1)
+        # Heuristically return an empty log if there are zero confirmed stops in the log.
+        elif (~(log.action == "STOPPED_AT").any() and 
+              len(log.latest_information_time.unique())) == 1:
+            return log.head(0)
         else:
-            return log
+            # Find the last definite stop.
+            last_definite_stop = (log.latest_information_time ==\
+                log.latest_information_time.unique()[-1]).idxmax() - 1
+            # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same 
+            # `LATEST_INFORMATION_TIME`.
+            suspicious_block = log.tail(-last_definite_stop - 1)
+            if len(suspicious_block) == 1:
+                return log
+            elif len(suspicious_block['latest_information_time'].unique()) == 1:
+                return log.head(last_definite_stop + 1)
+            else:
+                return log
+
+    for unique_trip_id in logbook:
+        logbook[unique_trip_id] = cut_cancellations_log(logbook[unique_trip_id])
+
+    return logbook
 
 
 def discard_partial_logs(logbook):
