@@ -9,7 +9,7 @@ def synthesize_route(station_lists):
     """
     Given a list of station lists (that is: a list of lists, where each sublist consists of the
     series of stations which a train was purported to be heading towards at any one time), 
-    returns the synthetic route of all of the stops that train may have stopped at, in the order 
+    returns the synthetic route of all of the stops that train may have stopped at, in the order
     in which those stops would have occurred.
     """
     ret = []
@@ -65,7 +65,9 @@ def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31'):
         times will be valid.
     """
     import requests
-    return requests.get("https://datamine-history.s3.amazonaws.com/{0}-{1}".format(feed, timestamp))
+    return requests.get(
+        "https://datamine-history.s3.amazonaws.com/{0}-{1}".format(feed, timestamp)
+    )
 
 
 def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)):
@@ -86,7 +88,8 @@ def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)
         f"{str(ts.year) + str(ts.month).rjust(2, '0') + str(ts.day).rjust(2, '0')}.tar.xz"
     )
 
-    # The tar module does not seem to support reading virtual files via io.BytesIO, we have to go to disc.
+    # The tar module does not seem to support reading virtual files via io.BytesIO, we have to go 
+    # to disc.
     temp_filename = "temp.tar.xz"
     with open(temp_filename, "wb") as f:
         f.write(requests.get(uri).content)
