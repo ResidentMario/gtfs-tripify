@@ -50,8 +50,10 @@ def dictify(buffer):
                     'stop_time_update': [
                         {
                             'stop_id': _update.stop_id,
-                            'arrival': np.nan if str(_update.arrival) == "" else _update.arrival.time,
-                            'departure': np.nan if str(_update.departure) == "" else _update.departure.time
+                            'arrival': np.nan if str(_update.arrival) == "" 
+                                else _update.arrival.time,
+                            'departure': np.nan if str(_update.departure) == "" 
+                                else _update.departure.time
                         } for _update in message.trip_update.stop_time_update]
                 },
                 'type': 'trip_update'
@@ -98,34 +100,43 @@ def dictify(buffer):
 
 def drop_invalid_messages(update):
     """
-    Given a feed update (as returned by `dictify`), catch certain non-fatal errors that, though they violate the
-    GTFS-RT spec, are still valid in the Protobuf spec. These are operator errors made by the feed publisher.
-    A warning is raised and the non-conformant messages are dropped.
+    Given a feed update (as returned by `dictify`), catch certain non-fatal errors that, though 
+    they violate the GTFS-RT spec, are still valid in the Protobuf spec. These are operator errors
+    made by the feed publisher. A warning is raised and the non-conformant messages are dropped.
     """
     # Capture and throw away vehicle updates that do not also have trip updates.
-    vehicle_update_ids = {m['vehicle']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'vehicle_update'}
-    trip_update_ids = {m['trip_update']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'trip_update'}
+    vehicle_update_ids = {
+        m['vehicle']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'vehicle_update'
+    }
+    trip_update_ids = {
+        m['trip_update']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'trip_update'
+    }
     trip_update_only_ids = vehicle_update_ids.difference(trip_update_ids)
 
     if len(trip_update_only_ids) > 0:
-        warnings.warn("The trips with IDs {0} are provided vehicle updates but not trip updates in the GTFS-R update "
-                      "for {1}. These invalid trips were removed from the update during pre-processing.".format(
-            trip_update_only_ids, update['header']['timestamp'])
+        warnings.warn(
+            f"The trips with IDs {trip_update_only_ids} are provided vehicle updates but not "
+            f"trip updates in the GTFS-R update for {update['header']['timestamp']}. "
+            f"These invalid trips were removed from the update during pre-processing."
         )
-        update['entity'] = [m for m in update['entity'] if (m['type'] != 'vehicle_update' or
-                                                            m['vehicle']['trip']['trip_id'] not in trip_update_only_ids)]
+        update['entity'] = [m for m in update['entity'] if (
+                m['type'] != 'vehicle_update' or 
+                m['vehicle']['trip']['trip_id'] not in trip_update_only_ids
+            )
+        ]
 
     # Capture and throw away messages which have a null (empty string, '') trip id.
     nonalert_ids = vehicle_update_ids | trip_update_ids
     if '' in nonalert_ids:
-        warnings.warn("Some of the messages in the GTFS-R update for {0} have a null trip id. These invalid messages "
-                      "were removed from the update during pre-processing.".format(
-            update['header']['timestamp'])
+        warnings.warn(
+            f"Some of the messages in the GTFS-R update for {update['header']['timestamp']} "
+            f"have a null trip id. These invalid messages were removed from the update during "
+            f"pre-processing."
         )
-        update['entity'] = [m for m in update['entity'] if ((m['type'] == 'vehicle_update' and
-                                                             m['vehicle']['trip']['trip_id'] != "") or
-                                                            (m['type'] == 'trip_update') and
-                                                             m['trip_update']['trip']['trip_id'] != "")]
+        update['entity'] = [m for m in update['entity'] if (
+            (m['type'] == 'vehicle_update' and m['vehicle']['trip']['trip_id'] != "") or
+            (m['type'] == 'trip_update') and m['trip_update']['trip']['trip_id'] != "")
+        ]
 
     return update
 
@@ -181,8 +192,9 @@ def collate(updates, include_alerts=False):
         ...
     }
 
-    Note that the interior message is in the format returned by the `collate_update` subroutine, which 
-    handles collocation *within* an update, whilst this method handles collocation *between* updates.
+    Note that the interior message is in the format returned by the `collate_update` subroutine, 
+    which handles collocation *within* an update, whilst this method handles collocation *between*
+    updates.
 
     This method calculates a UUID for the `unique_trip_id`.
     """
@@ -199,7 +211,9 @@ def collate(updates, include_alerts=False):
     all_trip_ids = list(all_trip_ids)
 
     # Build a boolean matrix whose x_dim is trip_id and whose y_dim is time (update sequence number).
-    containment_matrix = np.vstack([np.isin(all_trip_ids, list(update_keymap.keys())) for update_keymap in update_keymaps])
+    containment_matrix = np.vstack(
+        [np.isin(all_trip_ids, list(update_keymap.keys())) for update_keymap in update_keymaps]
+    )
 
     # Parse the containment matrix to deduplicate trips with the same trip_id. E.g.:
     #   $TRIP_ID: [True, True, True, False] -> one trip
@@ -228,8 +242,8 @@ def collate(updates, include_alerts=False):
 
 def actionify(trip_message, vehicle_message, timestamp):
     """
-    Parses the trip update and vehicle update messages (if there is one; may be None) for a particular trip into an
-    action log.
+    Parses the trip update and vehicle update messages (if there is one; may be None) for a 
+    particular trip into an action log.
     """
     # If a vehicle message is not None, the trip is already in progress.
     inp = vehicle_message is not None
@@ -241,16 +255,24 @@ def actionify(trip_message, vehicle_message, timestamp):
     loglist = []
 
     def log_arrival(stop_id, arrival_time):
-        loglist.append(np.append(base.copy(), np.array(['EXPECTED_TO_ARRIVE_AT', stop_id, arrival_time])))
+        loglist.append(
+            np.append(base.copy(), np.array(['EXPECTED_TO_ARRIVE_AT', stop_id, arrival_time]))
+        )
 
     def log_departure(stop_id, departure_time):
-        loglist.append(np.append(base.copy(), np.array(['EXPECTED_TO_DEPART_AT', stop_id, departure_time])))
+        loglist.append(
+            np.append(base.copy(), np.array(['EXPECTED_TO_DEPART_AT', stop_id, departure_time]))
+        )
 
     def log_stop(stop_id, arrival_time):
-        loglist.append(np.append(base.copy(), np.array(['STOPPED_AT', stop_id, arrival_time])))
+        loglist.append(
+            np.append(base.copy(), np.array(['STOPPED_AT', stop_id, arrival_time]))
+        )
 
     def log_skip(stop_id, skip_time):
-        loglist.append(np.append(base.copy(), np.array(['EXPECTED_TO_SKIP', stop_id, skip_time])))
+        loglist.append(
+            np.append(base.copy(), np.array(['EXPECTED_TO_SKIP', stop_id, skip_time]))
+        )
 
     for s_i, stop_time_update in enumerate(trip_message['trip_update']['stop_time_update']):
 
@@ -268,7 +290,8 @@ def actionify(trip_message, vehicle_message, timestamp):
         elif first_station and vehicle_status == 'QUEUED':
             log_departure(stop_id, departure_time)
 
-        # First station, vehicle status is IN_TRANSIT_TO or INCOMING_AT, both arrival and departure fields are non-null.
+        # First station, vehicle status is IN_TRANSIT_TO or INCOMING_AT, both arrival and 
+        # departure fields are non-null.
         # Intermediate station, both arrival and departure fields are non-null.
         elif ((first_station and
                vehicle_status in ['IN_TRANSIT_TO', 'INCOMING_AT'] and
@@ -284,7 +307,8 @@ def actionify(trip_message, vehicle_message, timestamp):
         # Not the last station, one of arrival or departure is null.
         elif ((not last_station and
                (pd.isnull(arrival_time) or pd.isnull(departure_time)))):
-            log_skip(stop_id, departure_time) if pd.isnull(arrival_time) else log_skip(stop_id, arrival_time)
+            log_skip(stop_id, departure_time) if pd.isnull(arrival_time)\
+                else log_skip(stop_id, arrival_time)
 
         # Last station, not also the first (e.g. not length 1).
         elif last_station and not first_station:
@@ -296,11 +320,15 @@ def actionify(trip_message, vehicle_message, timestamp):
 
         # This shouldn't occur, and indicates an error in the input or our logic.
         else:
-            raise ValueError("An error occurred while converting a message to an action log, probably due to invalid "
-                             "input.")
+            raise ValueError(
+                "An error occurred while converting a message to an action log, probably due "
+                "to invalid input."
+            )
 
-    action_log = pd.DataFrame(loglist, columns=['trip_id', 'route_id', 'information_time', 'action', 'stop_id',
-                                              'time_assigned'])
+    action_log = pd.DataFrame(
+        loglist, 
+        columns=['trip_id', 'route_id', 'information_time', 'action', 'stop_id','time_assigned']
+    )
     # base is a single-typed numpy array which converts the information_time input to dtype `U<14`
     # so we have to convert it back before returning
     action_log = action_log.assign(information_time=action_log.information_time.astype(int))
@@ -324,22 +352,22 @@ def _parse_message_list_into_action_log(message_collection, timestamp):
     return pd.concat(actions_list)
 
 
-# TODO: add a key to the log with the list of timestamps associated with the log. 
-# This is needed for merge, and helpful metadata to have in general.
 def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     """
-    Given a list of action logs associated with a particular trip, returns the result of their merger: a single trip
-    log.
+    Given a list of action logs associated with a particular trip, returns the result of their 
+    merger: a single trip log.
 
-    By default, this trip is left unterminated. To terminate the trip (replacing any remaining stops to be made with
-    the appropriate information), set the `finished` flag to `True` and provide a `finish_information_time`,
-    which should correspond with the time at which you learn that the trip has ended. This must be provided
-    separately because when a trip ends, it merely disappears from the GTFS-R feed, The information time of the
-    first GTFS-R feed *not* containing this trip, an externality, is the relevant piece of information.
+    By default, this trip is left unterminated. To terminate the trip (replacing any remaining 
+    stops to be made with the appropriate information), set the `finished` flag to `True` and 
+    provide a `finish_information_time`, which should correspond with the time at which you learn 
+    that the trip has ended. This must be provided separately because when a trip ends, it merely 
+    disappears from the GTFS-R feed, The information time of the first GTFS-R feed *not* 
+    containing this trip, an externality, is the relevant piece of information.
     """
 
-    # Capture the first row of information for each information time. `key_data` may contain skipped stops! We have
-    # to iterate through `remaining_stops` and `key_data` simultaneously to get what we want.
+    # Capture the first row of information for each information time. `key_data` may contain 
+    # skipped stops! We have to iterate through `remaining_stops` and `key_data` simultaneously 
+    # to get what we want.
     all_data = pd.concat(tripwise_action_logs)
     key_data = (all_data
                 .groupby('information_time')
@@ -353,7 +381,8 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     # Get the complete list of information times.
     information_times = [np.nan] + list(all_data['information_time'].unique()) + [np.nan]
 
-    # Init lines, where we will concat our final result, and the base (trip_id, route_id) to be written to it.
+    # Init lines, where we will concat our final result, and the base (trip_id, route_id) to be 
+    # written to it.
     base = np.array([key_data.iloc[0]['trip_id'], key_data.iloc[0]['route_id']])
     lines = []
 
@@ -372,9 +401,9 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
 
         if next_record['stop_id'] != next_stop and next_record['stop_id'] not in passed_stops:
             skipped_stop = np.append(base.copy(), np.array(
-                            ['STOPPED_OR_SKIPPED', information_times[it_i - 1], information_times[it_i],
-                             next_stop, information_times[it_i]]
-                        ))
+                ['STOPPED_OR_SKIPPED', information_times[it_i - 1], 
+                 information_times[it_i], next_stop, information_times[it_i]]
+            ))
             lines.append(skipped_stop)
             passed_stops.add(next_stop)
             most_recent_passed_stop = next_stop
@@ -389,7 +418,7 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
         elif next_record['stop_id'] == next_stop and next_record['action'] == 'STOPPED_AT':
             stopped_stop = np.append(base.copy(), np.array(
                 ['STOPPED_AT', information_times[it_i - 1], information_times[it_i + 1],
-                next_stop, information_times[it_i]]
+                 next_stop, information_times[it_i]]
             ))
             lines.append(stopped_stop)
             passed_stops.add(next_stop)
@@ -399,7 +428,8 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
             kd_i += 1
             st_i += 1
 
-        else:  # next_record['stop_id'] == next_stop and next_record['action'] == 'EXPECTED_TO_ARRIVE_AT':
+        # next_record['stop_id'] == next_stop and next_record['action'] == 'EXPECTED_TO_ARRIVE_AT':
+        else:
             it_i += 1
             kd_i += 1
 
@@ -413,8 +443,10 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
         ))
         lines.append(future_stop)
 
-    trip = pd.DataFrame(lines, columns=['trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
-                                        'latest_information_time'])
+    trip = pd.DataFrame(lines, columns=[
+        'trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id', 
+        'latest_information_time'
+    ])
 
     if finished:
         assert finish_information_time
@@ -425,8 +457,8 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
 
 def _finish_trip(trip_log, timestamp):
     """
-    Finishes a trip. We know a trip is finished when its messages stops appearing in feed files, at which time we can
-    "cross out" any stations still remaining.
+    Finishes a trip. We know a trip is finished when its messages stops appearing in feed files,
+    at which time we can "cross out" any stations still remaining.
     """
     trip_log = (trip_log.replace('EN_ROUTE_TO', 'STOPPED_OR_SKIPPED')
                         .replace('EXPECTED_TO_SKIP', 'STOPPED_OR_SKIPPED')
@@ -437,8 +469,9 @@ def _finish_trip(trip_log, timestamp):
 
 def logify(updates):
     """
-    Given a list of feed updates, returns a logbook associated with each trip mentioned in those feeds.
-    Also returns the set of timestamps covered by the logbook. Output is the tuple (logbook, timestamps).
+    Given a list of feed updates, returns a logbook associated with each trip mentioned in those
+    feeds. Also returns the set of timestamps covered by the logbook. Output is the tuple 
+    (logbook, timestamps).
     """
     # trivial case
     if updates == []:
@@ -462,7 +495,9 @@ def logify(updates):
         last_tripwise_timestamp = message_collection[-1]['timestamp']
         trip_terminated = message_collection[-1]['timestamp'] < last_timestamp
 
-        action_log = _parse_message_list_into_action_log(message_collection, last_tripwise_timestamp)
+        action_log = _parse_message_list_into_action_log(
+            message_collection, last_tripwise_timestamp
+        )
         actions_logs.append(action_log)
         trip_log, trip_timestamps = tripify(actions_logs)
         # TODO: is this necessary? Coerce types.
@@ -472,7 +507,7 @@ def logify(updates):
             latest_information_time=trip_log.latest_information_time.astype('int')
         )
 
-        # If the trip was terminated sometime in the course of these feeds, update the trip log accordingly.
+        # If the trip was terminated sometime in the course of these feeds, update the trip log
         if trip_terminated:
             trip_terminated_time = last_tripwise_timestamp
             trip_log = _finish_trip(trip_log, trip_terminated_time)
@@ -485,8 +520,8 @@ def logify(updates):
 
 def merge_logbooks(logbook_tuples):
     """
-    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in time-sort order,
-    perform a merge.
+    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in 
+    time-sort order, perform a merge.
     """
     left = dict()
     left_timestamps = dict()
@@ -508,7 +543,7 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
     # There are five kinds of joins that we care about.
     # (1) complete trips on the left side, just append
     # (2) complete trips on the right side, just append
-    # (3) incomplete trips on the left side that do not appear on the right, these are cancellations
+    # (3) incomplete trips on the left side that do not appear on the right, these are cancels
     # (4) incomplete trips on the left side that do appear on the right, these are joiners
     # (5) incomplete trips on the right side that do not appear on the left, just append
     incomplete_trips_left = [unique_trip_id for unique_trip_id in left\
@@ -559,15 +594,16 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
 
 def _join_trip_logs(left, right):
     """
-    Two trip logs may contain information based on action logs, and GTFS-Realtime feed updates, which are
-    dis-contiguous in time. In other words, these logs reflect the same trip, but are based on different sets of
-    observations.
+    Two trip logs may contain information based on action logs, and GTFS-Realtime feed updates, 
+    which are discontiguous in time. In other words, these logs reflect the same trip, but are 
+    based on different sets of observations.
 
-    In such cases recovering a full(er) record requires merging these two logs together. Here we implement this
-    operation.
+    In such cases recovering a full(er) record requires merging these two logs together. Here we 
+    implement this operation.
     """
     # Order the frames so that the earlier one is on the left.
-    left_start, right_start = left['latest_information_time'].min(), right['latest_information_time'].min()
+    left_start = left['latest_information_time'].min()
+    right_start = right['latest_information_time'].min()
     if right_start < left_start:
         left, right = right, left
 
@@ -587,12 +623,12 @@ def _join_trip_logs(left, right):
     # Combine records.
     join = pd.concat([left.iloc[left_indices], right]).reset_index(drop=True)
 
-    # Declaring an ordinal categorical column in the stop_id attribute makes `pandas` handle resorting internally and,
-    # hence, results in a significant speedup (over doing so ourselves).
+    # Declaring an ordinal categorical column in the stop_id attribute makes `pandas` handle 
+    # resorting internally and, hence, results in a significant speedup (over doing so ourselves).
     join['stop_id'] = pd.Categorical(join['stop_id'], stations, ordered=True)
 
-    # Update records for stations before the first station in the right trip log that the train is EN_ROUTE_TO or
-    # STOPPED_OR_SKIPPED.
+    # Update records for stations before the first station in the right trip log that the train
+    # is EN_ROUTE_TO or STOPPED_OR_SKIPPED.
     swap_station = right.iloc[0]['stop_id']
     swap_index = next(i for i, station in enumerate(stations) if station == swap_station)
     swap_space = join[:swap_index]
@@ -603,35 +639,41 @@ def _join_trip_logs(left, right):
     join.loc[swap_index, 'minimum_time'] = left.loc[0, 'minimum_time']
 
     # Hard-case the columns to float so as to avoid weird typing issues that keep coming up.
-    join.loc[:, ['minimum_time', 'maximum_time']] = join.loc[:, ['minimum_time', 'maximum_time']].astype(float)
+    join.loc[:, ['minimum_time', 'maximum_time']] =\
+        join.loc[:, ['minimum_time', 'maximum_time']].astype(float)
 
-    # The second trip update may on the first index contain incomplete minimum time information due to not having a
-    # reference to a previous trip update included in that trip log's generative action log set. There are a number
-    # of ways in which this can occur, but the end fact of the matter is that between the last entry in the first
-    # trip log and the first entry in the second trip log, we may have one of three different inconsistencies:
+    # The second trip update may on the first index contain incomplete minimum time information
+    # due to not having a reference to a previous trip update included in that trip log's 
+    # generative action log set. There are a number of ways in which this can occur, but the end
+    # fact of the matter is that between the last entry in the first trip log and the first entry
+    # in the second trip log, we may have one of three different inconsistencies:
     #
-    # 1. The prior states that the train stopped at (or skipped) the last station in that log at some known time,
-    #    but the minimum time of the first stop or skip in the posterior log is a NaN, due to lack of prior information.
-    # 2. The prior states that the train stopped at (or skipped) the last station in that log at some known minimum
-    #    time, but the posterior log first entry minimum time is even earlier.
-    # 3. The prior states that the train stopped at (or skipped) the last station in that log at some known maximum
-    #    time, but the posterior log first entry minimum time is even earlier.
+    # 1. The prior states that the train stopped at (or skipped) the last station in that log at
+    #    some known time, but the minimum time of the first stop or skip in the posterior log is
+    #    a NaN, due to lack of prior information.
+    # 2. The prior states that the train stopped at (or skipped) the last station in that log at
+    #    some known minimum time, but the posterior log first entry minimum time is even earlier.
+    # 3. The prior states that the train stopped at (or skipped) the last station in that log at
+    #    some known maximum time, but the posterior log first entry minimum time is even earlier.
     #
     # The lines below handle each one of these possible inconsistencies in turn.
     join.loc[:, 'minimum_time'] = join.loc[:, 'minimum_time'].fillna(method='ffill')
     join.loc[1:, 'minimum_time'] = np.maximum.accumulate(join.loc[1:, 'minimum_time'].values)
 
     if len(join) > 1:
-        join.loc[len(left) -1, 'minimum_time'] = np.maximum(np.nan_to_num(join.loc[len(left) - 2, 'maximum_time']),
-                                                            join.loc[len(left) - 1, 'minimum_time'])
+        join.loc[len(left) -1, 'minimum_time'] = np.maximum(
+            np.nan_to_num(join.loc[len(left) - 2, 'maximum_time']),
+            join.loc[len(left) - 1, 'minimum_time']
+        )
 
-    # Again at the location of the join, we may also get an incomplete `maximum_time` entry, for the same reason. In
-    # this case we will take the `maximum_time` of the following entry. However, note that we are *losing
-    # information* in this case, as we could technically resolve this time to a more accurate one, given the full
-    # list of information times. However, we do not have that information at this time in the processing sequence.
-    # This is an unfortunate but not particularly important, all things considered, technical shortcoming of the way
-    # we chose to code things.
-
+    # Again at the location of the join, we may also get an incomplete `maximum_time` entry, 
+    # for the same reason. In this case we will take the `maximum_time` of the following entry. 
+    # However, note that we are *losing information* in this case, as we could technically 
+    # resolve this time to a more accurate one, given the full list of information times. 
+    # However, we do not have that information at this time in the processing sequence. This is
+    # an unfortunate but not particularly important, all things considered, technical 
+    # shortcoming.
+    
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
     join = join.assign(latest_information_time=join.latest_information_time.astype(int))

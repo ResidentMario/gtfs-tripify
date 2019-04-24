@@ -2,7 +2,8 @@ import pandas as pd
 import gtfs_tripify as gt
 import warnings
 
-# This module will only work if the Google parser is provided, but we do not want to make it a package dependency.
+# This module will only work if the Google parser is provided, but we do not want to make it a 
+# package dependency.
 try:
     from google.transit import gtfs_realtime_pb2
 except ImportError:
@@ -29,19 +30,16 @@ CREATE TABLE IF NOT EXISTS Logbooks (
     )
     root_id_modifier_pairs = set((did[:-2], int(did[-1:])) for did in database_unique_ids)
 
-    # The `trip_id` values included in the GTFS-Realtime streams are not unique. This was the source of much pain
-    # in the design of the `gtfs-tripify` library. Furthermore, the modified trip key values used in the trip
-    # logs, which are unique within the triplog, are not unique in time: a trip id that gets reused across two
-    # different logbooks will be appended a 0 counter in both triplogs, which de-uniquifies the trip when it is
-    # written to the database.
+    # The `trip_id` values included in the GTFS-Realtime streams are not unique. This was the 
+    # source of much pain in the design of the `gtfs-tripify` library. Furthermore, the modified 
+    # trip key values used in the trip logs, which are unique within the triplog, are not unique 
+    # in time: a trip id that gets reused across two different logbooks will be appended a 0 
+    # counter in both triplogs, which de-uniquifies the trip when it is written to the database.
     #
     # For the purposes of long-term storage, we must come up with our own unique keys.
-
+    #
     # TODO: Address the Schlemiel the Painter's Algorithm characteristics of this algorithm.
     # We should count up more smartly than just taking step sizes of 1.
-    # TODO: Investigate why this algorithm results in such high numbers when used for writing to the database.
-    # A typical `unique_trip_id` in the database might be 052800_GS.N03R_792, for no immediately identifiable reason.
-    # What the heck?
     key_modifications = {}
     for trip_id in logbook.keys():
         idx = trip_id.rfind("_")
@@ -90,7 +88,10 @@ CREATE TABLE IF NOT EXISTS Logbooks (
 
 
 def parse_feed(filepath):
-    """Helper function for reading a feed in using Protobuf. Handles bad feeds by replacing them with None."""
+    """
+    Helper function for reading a feed in using Protobuf. 
+    Handles bad feeds by replacing them with None.
+    """
     # TODO: tests.
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -101,11 +102,12 @@ def parse_feed(filepath):
                 fm.ParseFromString(f.read())
                 return fm
 
-            # Protobuf occasionally raises an unexpected tag RuntimeWarning. This occurs when a feed that we
-            # read has unexpected problems, but is still valid overall. This warning corresponds with data loss in
-            # most cases. `gtfs-tripify` is sensitive to the disappearance of trips in the record. If data is lost,
-            # it's best to excise the message entirely. Hence we catch these warnings and return a flag value None,
-            # to be taken into account upstream. For further information see the following thread:
+            # Protobuf occasionally raises an unexpected tag RuntimeWarning. This occurs when a
+            # feed that we read has unexpected problems, but is still valid overall. This 
+            # warning corresponds with data loss in most cases. `gtfs-tripify` is sensitive to the
+            # disappearance of trips in the record. If data is lost, it's best to excise the 
+            # message entirely. Hence we catch these warnings and return a flag value None, to be
+            # taken into account upstream. For further information see the following thread:
             # https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
             except RuntimeWarning:
                 return None
@@ -115,15 +117,15 @@ def parse_feed(filepath):
                 raise
 
             # Return the same None flag value for all other (Protobuf-thrown) errors.
-            # TODO: do not use bare except.
             except:
                 return None
 
 
 def stream_to_sql(stream, conn, transform=None):
     """
-    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable manner. To transform
-    the data in the logbook before writing to the database, provide a method doing so to the `transform` parameter.
+    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable 
+    manner. To transform the data in the logbook before writing to the database, provide a 
+    method doing so to the `transform` parameter.
     """
     stream = [parse_feed(feed) for feed in stream]
     stream = [feed for feed in stream if feed is not None]
