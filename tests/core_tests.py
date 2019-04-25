@@ -991,4 +991,24 @@ class LogbookJoinLogicTests(unittest.TestCase):
         assert result['uuid1'].action.values.tolist() == ['EN_ROUTE_TO']
         assert result_timestamps['uuid1'] == [1, 2]
 
-    # TODO: test incomplete cancelled case
+    def test_incomplete_cancelled_trip(self):
+        """
+        There is a trip on the left that is incomplete and which is not matched to any trips
+        on the right. This indicates a cancellation in the gap between the two logbooks.
+        """
+        actions1 = create_mock_action_log(
+            actions=['EN_ROUTE_TO'], information_time=1, trip_id='A'
+        )
+        trip1 = gt.tripify([actions1])[0]
+        left_logbook, left_timestamps = {'uuid1': trip1}, {'uuid1': [1]}
+
+        actions2 = create_mock_action_log(
+            actions=['STOPPED_AT'], information_time=2, trip_id='B'
+        )
+        trip2 = gt.tripify([actions2])[0]
+        right_logbook, right_timestamps = {'uuid2': trip2}, {'uuid2': [2]}
+
+        result, _ = gt.join_logbooks(
+            left_logbook, left_timestamps, right_logbook, right_timestamps
+        )
+        assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED']

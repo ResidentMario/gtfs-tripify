@@ -535,6 +535,8 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
     Given two trip logbooks and their associated timestamps, get their merger.
     """
     # Trivial cases.
+    # TODO: this will not address case (3), in the potential case that the empty is correct.
+    # This is a bug that needs to be fixed!
     if len(right) == 0:
         return left
     if len(left) == 0:
@@ -574,15 +576,25 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
             assert right_map[trip_id] is None
             right_map[trip_id] = right[unique_trip_id_right]
 
-    # for trips that matched, perform the merge
     for trip_id in right_map:
-        unique_trip_id_left = left_map[trip_id]
         trip_data_right = right_map[trip_id]
-        left[left_map[trip_id]] = _join_trip_logs(left[unique_trip_id_left], trip_data_right)
-        left_timestamps[unique_trip_id_left] =\
-            left_timestamps[unique_trip_id_left] + right_timestamps[unique_trip_id_right]
-        del left_map[trip_id]
+        unique_trip_id_left = left_map[trip_id]
 
+        # for trips we found a match for, perform the merge
+        if trip_data_right is not None:
+            left[left_map[trip_id]] = _join_trip_logs(
+                left[unique_trip_id_left], trip_data_right
+            )
+            left_timestamps[unique_trip_id_left] =\
+                left_timestamps[unique_trip_id_left] + right_timestamps[unique_trip_id_right]
+            del left_map[trip_id]
+
+        # for trips we did not find a match for, finalize as a cancellation
+        else:
+            left[unique_trip_id_left] = _finish_trip(left[unique_trip_id_left], first_right_timestamp)
+
+
+    # for trips we did not find a a mat
     # finalize trips that were incomplete in the left and also didn't appear in the right
     # this is whatever's left that's in the left_map after joins are done
     for trip_id in left_map:
