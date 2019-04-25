@@ -4,6 +4,8 @@ Many major transit municipalities in the United States public realtime informati
 
 `gtfs-tripify` is a Python package for turning streams of GTFS-Realtime messages into a "trip log" of train arrival and departure times. The result is the ground truth history of arrivals and departures of all trains included in the inputted GTFS-RT feeds.
 
+Note that logic for doing so is highly involved, and this library is still under active development. So, expect bugs!
+
 ## Quickstart
 
 Begin by running the following to install this package on your local machine:
@@ -106,11 +108,17 @@ len(pruned_logbook)  # 245 logs remaining
 sum(len(log) for log in pruned_logbook)  # 8820 log entries remaining
 ```
 
-Alternatively, you may partition a logbook into complete and incomplete trip logbooks:
+You may partition a logbook into complete and incomplete trip logbooks:
 
 ```python
 complete_logbook, complete_timestamps, incomplete_logbook, incomplete_timestamps =\
-    partition_on_incomplete(logbook, timestamps)
+    gt.ops.partition_on_incomplete(logbook, timestamps)
+```
+
+Or partition a logbook based on route:
+
+```python
+logbooks_by_route, timestamps_by_route = gt.ops.partition_on_route(logbook, timestamps)
 ```
 
 You can construct a larger logbook out of a contiguous sequence of smaller ones:

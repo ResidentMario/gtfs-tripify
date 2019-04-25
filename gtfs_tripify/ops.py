@@ -4,6 +4,7 @@ Operations defined on logbooks.
 
 import warnings
 import itertools
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -114,7 +115,7 @@ def drop_invalid_messages(update):
     return update
 
 
-def partition_on_incomplete(logbook, logbook_timestamps):
+def partition_on_incomplete(logbook, timestamps):
     """
     Partitions a logbook (and associated timestamps) into two parts: a logbook with complete
     logs, and a logbook with log records. A log is incomplete if there is at least one station
@@ -129,12 +130,29 @@ def partition_on_incomplete(logbook, logbook_timestamps):
         log = logbook[unique_trip_id]
         if logbook[unique_trip_id].action.iloc[-1] == 'EN_ROUTE_TO':
             incomplete_logbook[unique_trip_id] = log
-            complete_timestamps[unique_trip_id] = logbook_timestamps[unique_trip_id]
+            complete_timestamps[unique_trip_id] = timestamps[unique_trip_id]
         else:
             complete_logbook[unique_trip_id] = log
-            incomplete_timestamps[unique_trip_id] = logbook_timestamps[unique_trip_id]
+            incomplete_timestamps[unique_trip_id] = timestamps[unique_trip_id]
     
     return complete_logbook, complete_timestamps, incomplete_logbook, incomplete_timestamps
+
+
+def partition_on_route_id(logbook, timestamps):
+    """
+    Partitions a logbook (and associated timestamps) into multiple separate logbooks based
+    on the route_id. This is useful for I/O; when you write to disk it makes sense to organize
+    your files based on route.
+    """
+    route_logbooks, route_timestamps = defaultdict(dict), defaultdict(dict)
+
+    for unique_trip_id in logbook:
+        log = logbook[unique_trip_id]
+        route_id = log.route_id.iloc[0]
+        route_logbooks[route_id][unique_trip_id] = log
+        route_timestamps[route_id][unique_trip_id] = timestamps[unique_trip_id]
+
+    return route_logbooks, route_timestamps
 
 
 def merge_logbooks(logbook_tuples):
