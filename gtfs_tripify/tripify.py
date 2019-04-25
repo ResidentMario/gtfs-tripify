@@ -1,10 +1,12 @@
-import numpy as np
 import itertools
 from collections import defaultdict
-import pandas as pd
-from gtfs_tripify.utils import synthesize_route
 import warnings
 import uuid
+
+import numpy as np
+import pandas as pd
+
+from gtfs_tripify.utils import synthesize_route
 
 
 def dictify(buffer):

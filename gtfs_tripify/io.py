@@ -69,11 +69,7 @@ CREATE TABLE IF NOT EXISTS Logbooks (
                 break
 
     for key in key_modifications:
-        try:
-            logbook[key_modifications[key]] = logbook.pop(key)
-        except:
-            import pdb; pdb.set_trace()
-            pass
+        logbook[key_modifications[key]] = logbook.pop(key)
 
     # Write out.
     if len(logbook) > 0:

@@ -1,8 +1,10 @@
-import datetime
-import numpy as np
 import itertools
 import tarfile
 import os
+import datetime
+
+import numpy as np
+import requests
 
 
 def synthesize_route(station_lists):
@@ -64,7 +66,6 @@ def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31'):
         06, 11, 16, 21, 26, 31, 36, 41, 46, 51, and 56 minutes after the hour, so only these 
         times will be valid.
     """
-    import requests
     return requests.get(
         "https://datamine-history.s3.amazonaws.com/{0}-{1}".format(feed, timestamp)
     )
@@ -79,8 +80,6 @@ def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)
     (http://data.mytransit.nyc/). His archive is a complete record of the data from January 31st, 
     2016 through May 31st, 2017.
     """
-    import requests
-
     ts = timestamp
     uri = (
         f"http://data.mytransit.nyc.s3.amazonaws.com/subway_time/{ts.year}/{ts.year}-"

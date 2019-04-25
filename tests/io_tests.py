@@ -2,8 +2,10 @@
 `gtfs-tripify` IO test module. Asserts that IO functions are correct.
 """
 import unittest
-import pandas as pd
 import sqlite3
+
+import pandas as pd
+
 import gtfs_tripify as gt
 
 

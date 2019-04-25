@@ -1,11 +1,9 @@
 """
 `gtfs-tripify` utilities test module. Asserts that utility functions are correct.
 """
-
 import unittest
 import pandas as pd
 
-import sys; sys.path.append("../")
 import gtfs_tripify as gt
 
 
