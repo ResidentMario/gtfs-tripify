@@ -1,4 +1,4 @@
-# gtfs-tripify ![t](https://img.shields.io/badge/status-alpha-red.svg)
+# gtfs-tripify ![t](https://img.shields.io/badge/status-beta-yellow.svg)
 
 Many major transit municipalities in the United States public realtime information about the state of their systems using a common format known as a [GTFS-Realtime feed](https://developers.google.com/transit/gtfs-realtime/). This is the information that the [Metropolitan Transit Authority](https://en.wikipedia.org/wiki/Metropolitan_Transportation_Authority), for example, uses to power its arrival countdown clocks on station platforms.
 
@@ -12,7 +12,7 @@ Begin by running the following to install this package on your local machine:
 pip install git+git://github.com/ResidentMario/gtfs-tripify.git@master
 ```
 
-First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf. The easiest way to access the data is to use the default decoder Google has written for us, the [`gtfs_realtime_bindings` package](https://github.com/google/gtfs-realtime-bindings/tree/master/python). That's what we do below:
+First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf
 
 ```python
 # Load GTFS-Realtime feeds.
@@ -22,27 +22,16 @@ response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09
 response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
 response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
 
-# Load a GTFS-Realtime parser. We use the default Google parser.
-# cf. https://github.com/google/gtfs-realtime-bindings/tree/master/python
-from google.transit import gtfs_realtime_pb2
-
-# Build an example message stream.
-message1 = gtfs_realtime_pb2.FeedMessage()
-message1.ParseFromString(response1.content)
-message2 = gtfs_realtime_pb2.FeedMessage()
-message2.ParseFromString(response2.content)
-message3 = gtfs_realtime_pb2.FeedMessage()
-message3.ParseFromString(response3.content)
-stream = [message1, message2, message3]
+stream = [response1.content, response2.content, response3.content]
 ```
 
-Now we have a bunch of `gtfs_realtime_pb2.FeedMessage` object, each of which is a single decompressed GTFS-Realtime feed message (or just "message" for short). Each of these feeds represents the state of the same wired-up slice of the MTA transit network at a different but consecutive point in time.
+We now have the raw bytes for a sequence of GTFS-Realtime feed updates. Each update represents the state of the same wired-up slice of a transit network at a different but consecutive point in time.
 
 This is where `gtfs_tripify` comes in:
 
 ```python
 import gtfs_tripify as gt
-logbook, logbook_timestamps = gt.logify(stream)
+logbook, timestamps = gt.logify(stream)
 ```
 
 Now we have a `logbook`. If we inspect it we see that it is a `dict` with the following format:
@@ -102,22 +91,44 @@ Values are:
 
 ## Additional methods
 
-`gtfs_tripify` will by default provide as much information as possible, and will include both incomplete trips (trips which are still in progress as of the last message in the stream) and cancelled stops (stops that did not occur due to trip cancellations). You may prune these from the logbook using `gt.utils.cut_cancellations` and `gt.utils.discard_partial_logs`, respectively:
+The `ops` submodue contains a variety of operations useful for working with logbooks.
+
+`gtfs_tripify` will by default provide as much information as possible, and will include both incomplete trips (trips which are still in progress as of the last message in the stream) and cancelled stops (stops that did not occur due to trip cancellations). You may prune these:
 
 ```python
 len(logbook)  # 313 logs included
 sum(len(log) for log in logbook)  # 11268 log entries included
 
-logbook = gt.utils.cut_cancellations(logbook)
-logbook = gt.utils.discard_partial_logs(logbook)
+pruned_logbook = gt.ops.cut_cancellations(pruned_logbook)
+pruned_logbook = gt.ops.discard_partial_logs(pruned_logbook)
 
-len(logbook)  # 245 logs remaining
-sum(len(log) for log in logbook)  # 8820 log entries remaining
+len(pruned_logbook)  # 245 logs remaining
+sum(len(log) for log in pruned_logbook)  # 8820 log entries remaining
 ```
 
-Each logbook naturaly represents all stops in a system for a specific "time slice". You can construct a larger logbook out of smaller ones using `gt.merge_logbooks([(logbook_1, logbook_1_timestamps), (logbook_2, logbook_2_timestamps), ...])`. Note that the logbooks must be in *sorted contiguous order*. Each logbook must address adjacent time slices, e.g. `[1:00, 1:59], [2:00, 2:59], [3:00, 3:59], ...`.
+Alternatively, you may partition a logbook into complete and incomplete trip logbooks:
 
-Use the `gt.io.logbooks_to_sql` or `gt.io.stream_to_sql` helper methods to persist the data to a SQLite database. **Note**: these methods are currently under renovation.
+```python
+complete_logbook, complete_timestamps, incomplete_logbook, incomplete_timestamps =\
+    partition_on_incomplete(logbook, timestamps)
+```
+
+You can construct a larger logbook out of a contiguous sequence of smaller ones:
+
+```python
+old_logbook, old_timestamps = logbook, timestamps
+
+response4 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46')
+response5 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-51')
+response6 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46')
+
+new_stream = [response4.content, response5.content, response6.content]
+new_logbook, new_timestamps = gt.logify(new_stream)
+
+combined_logbook, combined_logbook_timestamps = gt.ops.merge(
+    [(old_logbook, old_timestamps), (new_logbook, new_timestamps)]
+)
+```
 
 ## Further reading
 

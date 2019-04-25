@@ -1,3 +1,7 @@
+"""
+Library utility functions.
+"""
+
 import itertools
 import tarfile
 import os
@@ -52,6 +56,18 @@ def _synthesize_station_lists(left, right):
         return left + right
 
 
+def finish_trip(trip_log, timestamp):
+    """
+    Finishes a trip. We know a trip is finished when its messages stops appearing in feed files,
+    at which time we can "cross out" any stations still remaining.
+    """
+    trip_log = (trip_log.replace('EN_ROUTE_TO', 'STOPPED_OR_SKIPPED')
+                        .replace('EXPECTED_TO_SKIP', 'STOPPED_OR_SKIPPED')
+                        .replace('nan', np.nan))
+    trip_log['maximum_time'] = trip_log['maximum_time'].fillna(timestamp)
+    return trip_log
+
+
 def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31'):
     """
     Returns archived GTFS data for a particular time_assigned.
@@ -99,65 +115,6 @@ def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)
 
     return messages
 
-
-##############
-# HEURISTICS #
-##############
-
-def cut_cancellations(logbook):
-    """
-    Heuristically cuts stops that almost certainly didn't happen do to trip cancellations. I 
-    refer to this as the "cut-cancellation" heuristic.
-
-    Returns a minified logbook containing only trips that almost assuredly happened.
-    """
-    def cut_cancellations_log(log):
-        # Immediately return if the log is empty.
-        if len(log) == 0:
-            return log
-        # Heuristically return an empty log if there are zero confirmed stops in the log.
-        elif (~(log.action == "STOPPED_AT").any() and 
-              len(log.latest_information_time.unique())) == 1:
-            return log.head(0)
-        else:
-            # Find the last definite stop.
-            last_definite_stop = (log.latest_information_time ==\
-                log.latest_information_time.unique()[-1]).idxmax() - 1
-            # Heuristically cut len >= 2 `STOPPED_OR_SKIPPED` blocks with the same 
-            # `LATEST_INFORMATION_TIME`.
-            suspicious_block = log.tail(-last_definite_stop - 1)
-            if len(suspicious_block) == 1:
-                return log
-            elif len(suspicious_block['latest_information_time'].unique()) == 1:
-                return log.head(last_definite_stop + 1)
-            else:
-                return log
-
-    for unique_trip_id in logbook:
-        logbook[unique_trip_id] = cut_cancellations_log(logbook[unique_trip_id])
-
-    return logbook
-
-
-def discard_partial_logs(logbook):
-    """
-    Discards logs which appear in the first or last message in the feed. These logs are extremely
-    likely to be partial because we do not get to "see" every single message corresponding with 
-    the trip, as some are outside our "viewing window".
-    """
-    trim = logbook.copy()
-
-    times = np.array(
-        list(
-            itertools.chain(
-                *[logbook[trip_id]['latest_information_time'].values for trip_id in logbook.keys()]
-            )
-        )
-    ).astype(int)
-    first, last = np.min(times), np.max(times)
-
-    for trip_id in logbook.keys():
-        if logbook[trip_id]['latest_information_time'].astype(int).isin([first, last]).any():
-            trim.pop(trip_id)
-
-    return trim
+__all__ = [
+    'synthesize_route', 'finish_trip', 'load_mta_archived_feed', 'load_mytransit_archived_feeds'
+]
