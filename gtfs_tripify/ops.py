@@ -155,6 +155,14 @@ def partition_on_route_id(logbook, timestamps):
     return route_logbooks, route_timestamps
 
 
+# The core logic in merge_logbooks duplications operations also defined in gt.tripify.collate.
+# The difference is that collate works on action logs whilst merge works on logbooks.
+# It would be possible to reuse the logic in collate here, instead of writing novel and
+# duplicituous internal routines. However, this would require changing the API: augmenting the
+# concept of "incomplete logbooks" with external exposure of the concept of "incomplete action 
+# logs". From a UX perspective, it's "better" to maintain a seperate function that operates on 
+# logbooks, even if this ultimately causes some duplication. Also this is how the library was
+# originally coded up, and integrating the logic of these two functions would be a lot of work!
 def merge_logbooks(logbook_tuples):
     """
     Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in 
