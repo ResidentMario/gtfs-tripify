@@ -5,6 +5,7 @@ import unittest
 import pandas as pd
 
 import gtfs_tripify as gt
+from gtfs_tripify.ops import cut_cancellations, discard_partial_logs
 
 
 class TestCutCancellations(unittest.TestCase):
@@ -20,7 +21,7 @@ class TestCutCancellations(unittest.TestCase):
         The heuristic should do nothing if the log is empty.
         """
         log = pd.DataFrame(columns=self.log_columns)
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 0
 
     def test_zero_confirmed(self):
@@ -28,7 +29,7 @@ class TestCutCancellations(unittest.TestCase):
         The heuristic should return an empty log if there are zero confirmed stops in the log.
         """
         log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 0
 
     def test_zero_tailing_unconfirmed(self):
@@ -36,7 +37,7 @@ class TestCutCancellations(unittest.TestCase):
         The heuristic should return an unmodified log if there are no tailing `STOPPED_OR_SKIPPED` records.
         """
         log = pd.DataFrame(columns=self.log_columns, data=[['_', '_', 'STOPPED_AT', '_', '_', '_', '_']])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 1
 
     def test_one_tailing_unconfirmed(self):
@@ -48,7 +49,7 @@ class TestCutCancellations(unittest.TestCase):
                                ['_', '_', 'STOPPED_AT', '_', '_', '_', '_'],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', '_']
                            ])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 2
 
     def test_many_unique_tailing_unconfirmed(self):
@@ -62,7 +63,7 @@ class TestCutCancellations(unittest.TestCase):
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1]
                            ])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 3
 
     def test_many_nonunique_tailing_unconfirmed(self):
@@ -76,7 +77,7 @@ class TestCutCancellations(unittest.TestCase):
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1]
                            ])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 1
 
     def test_many_nonunique_tailing_unconfirmed_stop_skip(self):
@@ -91,7 +92,7 @@ class TestCutCancellations(unittest.TestCase):
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 1]
                            ])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 1
 
     def test_many_unconfirmed_stop_skip(self):
@@ -104,7 +105,7 @@ class TestCutCancellations(unittest.TestCase):
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0],
                                ['_', '_', 'STOPPED_OR_SKIPPED', '_', '_', '_', 0]
                            ])
-        result = gt.utils.cut_cancellations(log)
+        result = cut_cancellations(log)
         assert len(result) == 0
 
 
@@ -130,7 +131,7 @@ class TestDiscardPartialLogs(unittest.TestCase):
                                  ['_', '_', '_', '_', '_', '_', 1]
                              ])
         logbook = {'_0': first, '_1': second}
-        result = gt.utils.discard_partial_logs(logbook)
+        result = discard_partial_logs(logbook)
         assert len(result) == 1
 
     def test_multiple_discard(self):
@@ -154,5 +155,5 @@ class TestDiscardPartialLogs(unittest.TestCase):
                              ])
 
         logbook = {'_0': first, '_1': second, '_2': third}
-        result = gt.utils.discard_partial_logs(logbook)
+        result = discard_partial_logs(logbook)
         assert len(result) == 1

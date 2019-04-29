@@ -10,6 +10,8 @@ from google.transit import gtfs_realtime_pb2
 import pytest
 
 import gtfs_tripify as gt
+from gtfs_tripify.tripify import dictify, actionify, logify, tripify, drop_invalid_messages
+from gtfs_tripify.ops import join_logbooks
 
 
 class TestDictify(unittest.TestCase):
@@ -21,7 +23,7 @@ class TestDictify(unittest.TestCase):
         self.gtfs = gtfs
 
     def test_dictify(self):
-        feed = gt.dictify(self.gtfs)
+        feed = dictify(self.gtfs)
         assert set(feed) == {'entity', 'header'}
         assert feed['header'].keys() == {'timestamp', 'gtfs_realtime_version'}
         assert isinstance(feed['header']['timestamp'], int)
@@ -80,7 +82,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -120,7 +122,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
                                        'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
 
@@ -160,7 +162,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
                                        'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
 
@@ -188,7 +190,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, None, timestamp)
+        log = actionify(trip_message, None, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -225,7 +227,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
 
     def test_case_6(self):
@@ -261,7 +263,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT']
 
     def test_case_7(self):
@@ -297,7 +299,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['STOPPED_AT']
 
     def test_case_8(self):
@@ -342,7 +344,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -378,7 +380,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
                                        'EXPECTED_TO_ARRIVE_AT']
 
@@ -417,7 +419,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT']
 
         # Second subcase.
@@ -451,7 +453,7 @@ class TestActionify(unittest.TestCase):
         }
         timestamp = 1463025417
 
-        log = gt.actionify(trip_message, vehicle_message, timestamp)
+        log = actionify(trip_message, vehicle_message, timestamp)
         assert list(log['action']) == ['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT']
 
 
@@ -497,7 +499,7 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.drop_invalid_messages(feed)
+            feed = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
@@ -528,7 +530,7 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.drop_invalid_messages(feed)
+            feed = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
@@ -545,7 +547,7 @@ class TestCorrectFeed(unittest.TestCase):
                                                  'start_date': ''}}}]}
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = gt.drop_invalid_messages(feed)
+            feed = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
 
@@ -572,7 +574,7 @@ class TripLogUnaryTests(unittest.TestCase):
         An action log with just a stoppage ought to report as a trip log with just a stoppage.
         """
         actions = [create_mock_action_log(['STOPPED_AT'])]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 1
         assert result.iloc[0].action == 'STOPPED_AT'
@@ -586,7 +588,7 @@ class TripLogUnaryTests(unittest.TestCase):
         check the docstring there).
         """
         actions = [create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT'])]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 1
         assert result.iloc[0].action == 'EN_ROUTE_TO'
@@ -598,7 +600,7 @@ class TripLogUnaryTests(unittest.TestCase):
         """
         An action log with a single arrival ought to report a single EN_ROUTE_TO in the trip log.
         """
-        result, _ = gt.tripify([
+        result, _ = tripify([
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT'])
         ])
         assert len(result) == 1
@@ -619,7 +621,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
                                             'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
         ]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 3
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -638,7 +640,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART', 'EXPECTED_TO_DEPART',
                                             'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
         ]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 3
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -655,7 +657,7 @@ class TripLogUnaryTests(unittest.TestCase):
                                             'EXPECTED_TO_ARRIVE_AT'],
                                    stops=['999X', '999X', '998X'])
         ]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['EN_ROUTE_TO', 'EN_ROUTE_TO']
@@ -671,7 +673,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(actions=['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT'],
                                    stops=['999X', '998X'])
         ]
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_AT', 'EN_ROUTE_TO']
@@ -700,7 +702,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
         actions = [first, second]
 
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['EN_ROUTE_TO']
@@ -720,7 +722,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
         actions = [first, second]
 
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_AT']
@@ -743,7 +745,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
         actions = [first, second]
 
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -765,7 +767,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
         actions = [first, second]
 
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -787,7 +789,7 @@ class TripLogBinaryTests(unittest.TestCase):
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
         actions = [first, second]
 
-        result, _ = gt.tripify(actions)
+        result, _ = tripify(actions)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'STOPPED_AT']
@@ -809,7 +811,7 @@ class TripLogReroutingTests(unittest.TestCase):
         first = base.head(1)
         second = base.assign(information_time=base.information_time.values[:-1].tolist() + [1])
 
-        result, _ = gt.tripify([first, second])
+        result, _ = tripify([first, second])
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'EN_ROUTE_TO']
@@ -835,7 +837,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         Finalization should do nothing to trip logs that are already complete.
         """
         base = create_mock_action_log(actions=['STOPPED_AT'], stops=['999X'])
-        result, _ = gt.tripify([base], finished=True, finish_information_time=np.nan)
+        result, _ = tripify([base], finished=True, finish_information_time=np.nan)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_AT']
@@ -845,7 +847,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         Finalization should cap off trips that are still EN_ROUTE.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT'], stops=['999X'])
-        result, _ = gt.tripify([base], finished=True, finish_information_time=np.nan)
+        result, _ = tripify([base], finished=True, finish_information_time=np.nan)
 
         assert len(result) == 1
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED']
@@ -857,7 +859,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         base = create_mock_action_log(actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X'])
         first = base.head(1)
         second = base.tail(1)
-        result, _ = gt.tripify([first, second], finished=True, finish_information_time=42)
+        result, _ = tripify([first, second], finished=True, finish_information_time=42)
 
         assert len(result) == 2
         assert list(result['action'].values) == ['STOPPED_OR_SKIPPED', 'STOPPED_OR_SKIPPED']
@@ -877,18 +879,18 @@ class TripLogbookTests(unittest.TestCase):
             gtfs_1 = gtfs_realtime_pb2.FeedMessage()
             gtfs_1.ParseFromString(f.read())
 
-        self.log_0 = gt.dictify(gtfs_0)
-        self.log_1 = gt.dictify(gtfs_1)
+        self.log_0 = dictify(gtfs_0)
+        self.log_1 = dictify(gtfs_1)
 
     def test_logbook(self):
-        logbook, _ = gt.logify([self.log_0, self.log_1])
+        logbook, _ = logify([self.log_0, self.log_1])
         assert len(logbook) == 94
 
     def test_logbook_join(self):
-        left, left_timestamps = gt.logify([self.log_0])
-        right, right_timestamps = gt.logify([self.log_1])
+        left, left_timestamps = logify([self.log_0])
+        right, right_timestamps = logify([self.log_1])
 
-        result, result_timestamps = gt.join_logbooks(left, left_timestamps, right, right_timestamps)
+        result, result_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
         assert len(result) == 94
         assert result.keys() == left.keys()  # only true in this simple case
         assert (result[list(result.keys())[0]].head(1) !=
@@ -908,22 +910,22 @@ class LogbookJoinLogicTests(unittest.TestCase):
             actions=['STOPPED_AT', 'STOPPED_AT'],
             information_time=information_time
         )
-        trip = gt.tripify([actions])[0]
+        trip = tripify([actions])[0]
         logbook = {'uuid': trip}  # as would be returned by gt.logify
         timestamps = {'uuid': [information_time]}
 
         # empty right and nonempty left
         empty_logbook, empty_timestamps = pd.DataFrame(columns=trip.columns), dict()
-        result = gt.join_logbooks(logbook, timestamps, empty_logbook, empty_timestamps)
+        result = join_logbooks(logbook, timestamps, empty_logbook, empty_timestamps)
         assert result.keys() == logbook.keys()
 
         # empty left and nonempty right
-        result = gt.join_logbooks(empty_logbook, empty_timestamps, logbook, timestamps)
+        result = join_logbooks(empty_logbook, empty_timestamps, logbook, timestamps)
         assert result.keys() == logbook.keys()
 
         # both empty
         assert len(
-            gt.join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
+            join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
         ) == 0
 
     def test_only_complete_trips(self):
@@ -934,13 +936,13 @@ class LogbookJoinLogicTests(unittest.TestCase):
         actions_2 = create_mock_action_log(
             actions=['STOPPED_AT'], information_time=2, trip_id='TRIP_2'
         )
-        left_logbook = {'uuid1': gt.tripify([actions_1])[0]}
+        left_logbook = {'uuid1': tripify([actions_1])[0]}
         left_timestamps = {'uuid1': [1]}
-        right_logbook = {'uuid2': gt.tripify([actions_2])[0]}
+        right_logbook = {'uuid2': tripify([actions_2])[0]}
         right_timestamps = {'uuid2': [2]}
 
         result, result_timestamps =\
-            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+            join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
         assert list(result.keys()) == ['uuid1', 'uuid2']
         assert all(result['uuid1'].trip_id == 'TRIP_1') and all(result['uuid2'].trip_id == 'TRIP_2')
         assert len(result_timestamps.keys()) == 2
@@ -956,16 +958,16 @@ class LogbookJoinLogicTests(unittest.TestCase):
         actions_2 = create_mock_action_log(
             actions=['STOPPED_AT'], information_time=2, stops=['501X']
         )
-        left_logbook = {'uuid1': gt.tripify([actions_1])[0]}
+        left_logbook = {'uuid1': tripify([actions_1])[0]}
         left_timestamps = {'uuid1': [1]}
-        right_logbook = {'uuid2': gt.tripify([actions_2])[0]}
+        right_logbook = {'uuid2': tripify([actions_2])[0]}
         right_timestamps = {'uuid2': [2]}
 
         # left log is en-route to two stops, right log is stopped at second of the two stops
         # expect logic to correctly mark first station STOPPED_OR_SKIPPED and correctly mark
         # second station STOPPED_AT
         result, result_timestamps =\
-            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+            join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
         assert len(result) == 1
         assert result_timestamps['uuid1'] == [1, 2]
         assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED', 'STOPPED_AT']
@@ -976,12 +978,12 @@ class LogbookJoinLogicTests(unittest.TestCase):
         the right.
         """
         actions = create_mock_action_log(actions=['EN_ROUTE_TO'], information_time=1)
-        log = gt.tripify([actions])[0]
+        log = tripify([actions])[0]
         left_logbook, right_logbook = {'uuid1': log}, {'uuid2': log}
         left_timestamps, right_timestamps = {'uuid1': [1]}, {'uuid2': [2]}
 
         result, result_timestamps =\
-            gt.join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
+            join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
         
         assert len(result) == 1
         # TODO: latest_information_time should change, and it should match the newer value,
@@ -998,16 +1000,16 @@ class LogbookJoinLogicTests(unittest.TestCase):
         actions1 = create_mock_action_log(
             actions=['EN_ROUTE_TO'], information_time=1, trip_id='A'
         )
-        trip1 = gt.tripify([actions1])[0]
+        trip1 = tripify([actions1])[0]
         left_logbook, left_timestamps = {'uuid1': trip1}, {'uuid1': [1]}
 
         actions2 = create_mock_action_log(
             actions=['STOPPED_AT'], information_time=2, trip_id='B'
         )
-        trip2 = gt.tripify([actions2])[0]
+        trip2 = tripify([actions2])[0]
         right_logbook, right_timestamps = {'uuid2': trip2}, {'uuid2': [2]}
 
-        result, _ = gt.join_logbooks(
+        result, _ = join_logbooks(
             left_logbook, left_timestamps, right_logbook, right_timestamps
         )
         assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED']

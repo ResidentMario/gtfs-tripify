@@ -171,11 +171,11 @@ def merge_logbooks(logbook_tuples):
     left = dict()
     left_timestamps = dict()
     for (right, right_timestamps) in logbook_tuples:
-        left, left_timestamps = _join_logbooks(left, left_timestamps, right, right_timestamps)
+        left, left_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
     return left, left_timestamps
 
 
-def _join_logbooks(left, left_timestamps, right, right_timestamps):
+def join_logbooks(left, left_timestamps, right, right_timestamps):
     """
     Given two trip logbooks and their associated timestamps, get their merger.
     """

@@ -197,6 +197,17 @@ def collate(updates, include_alerts=False):
             else:
                 continue
 
+    # In a separate pass, combine trips that that are "obviously" (hueristically) the same
+    # trip. Trips are considered "the same" if:
+    # * an old trip ended (disappeared) in update N
+    # * a new trip started (appeared) in update N
+    # * the old and new trips share a route id (e.g. both are B trains)
+    # * the new trip contains no trips that the old trip had already stopped at
+    # * the new trip contains a subset or superset of stops the old trip had planned to stop at
+    # If these are all true statements the action log of the new trip is appened onto the old
+    # import pdb; pdb.set_trace()
+    incomplete_unique_trip_ids = [ut_id for ut_id in out if len(out[ut_id]) != len(updates)]
+
     return out
 
 

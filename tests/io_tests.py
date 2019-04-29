@@ -7,7 +7,7 @@ import sqlite3
 import pandas as pd
 
 import gtfs_tripify as gt
-
+from gtfs_tripify.ops import logbook_to_sql, stream_to_sql, discard_partial_logs
 
 class TestLogbookToSQL(unittest.TestCase):
     """
@@ -22,7 +22,7 @@ class TestLogbookToSQL(unittest.TestCase):
         Test that a table is initialized correctly, if no preexisting table exists.
         """
         conn = sqlite3.connect(":memory:")
-        gt.io.logbook_to_sql({}, conn)
+        logbook_to_sql({}, conn)
 
         c = conn.cursor()
         result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
@@ -44,8 +44,8 @@ class TestLogbookToSQL(unittest.TestCase):
 
         logbook = {'same_trip_id_0': log}
 
-        gt.io.logbook_to_sql(logbook, conn)
-        gt.io.logbook_to_sql(logbook, conn)
+        logbook_to_sql(logbook, conn)
+        logbook_to_sql(logbook, conn)
 
         c = conn.cursor()
         result = c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall()
@@ -79,8 +79,8 @@ class TestLogbookToSQL(unittest.TestCase):
 
         logbook = {'same_trip_id_0': log, 'same_trip_id_1': log}
 
-        gt.io.logbook_to_sql(logbook, conn)
-        gt.io.logbook_to_sql(logbook, conn)
+        logbook_to_sql(logbook, conn)
+        logbook_to_sql(logbook, conn)
 
         c = conn.cursor()
         result = set(c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall())
@@ -103,8 +103,8 @@ class TestLogbookToSQL(unittest.TestCase):
         logbook1 = {'same_trip_id_0': log, 'same_trip_id_1': log}
         logbook2 = {'same_trip_id_0': log, 'same_trip_id_1': log, 'same_trip_id_2': log}
 
-        gt.io.logbook_to_sql(logbook1, conn)
-        gt.io.logbook_to_sql(logbook2, conn)
+        logbook_to_sql(logbook1, conn)
+        logbook_to_sql(logbook2, conn)
 
         c = conn.cursor()
         result = set(c.execute("SELECT DISTINCT unique_trip_id FROM Logbooks").fetchall())
@@ -127,7 +127,7 @@ class TestStreamToSQL(unittest.TestCase):
         The method works as expected without a parser.
         """
         conn = sqlite3.connect(":memory:")
-        gt.io.stream_to_sql(self.stream, conn)
+        stream_to_sql(self.stream, conn)
         c = conn.cursor()
 
         result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
@@ -141,7 +141,7 @@ class TestStreamToSQL(unittest.TestCase):
         The method works as expected with an identity transform.
         """
         conn = sqlite3.connect(":memory:")
-        gt.io.stream_to_sql(self.stream, conn, transform=lambda logbook: logbook)
+        stream_to_sql(self.stream, conn, transform=lambda logbook: logbook)
         c = conn.cursor()
 
         result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
@@ -155,7 +155,7 @@ class TestStreamToSQL(unittest.TestCase):
         The method works as expected with a real transform.
         """
         conn = sqlite3.connect(":memory:")
-        gt.io.stream_to_sql(self.stream, conn, transform=lambda logbook: gt.utils.discard_partial_logs(logbook))
+        stream_to_sql(self.stream, conn, transform=lambda logbook: discard_partial_logs(logbook))
         c = conn.cursor()
 
         result = c.execute("SELECT COUNT(*) FROM Logbooks").fetchone()
