@@ -171,26 +171,26 @@ def merge_logbooks(logbook_tuples):
     left = dict()
     left_timestamps = dict()
     for (right, right_timestamps) in logbook_tuples:
-        left, left_timestamps = _join_logbooks(left, left_timestamps, right, right_timestamps)
+        left, left_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
     return left, left_timestamps
 
 
-def _join_logbooks(left, left_timestamps, right, right_timestamps):
+def join_logbooks(left, left_timestamps, right, right_timestamps):
     """
     Given two trip logbooks and their associated timestamps, get their merger.
     """
     # Trivial cases.
-    # TODO: this will not address case (3), in the potential case that the empty is correct.
-    # This is a bug that needs to be fixed!
     if len(right) == 0:
         return left
     if len(left) == 0:
         return right
 
-    # There are five kinds of joins that we care about.
+    # TODO: attempt to reroot trips that cancel in between logbooks instead of always cancelling
+    # There are five kinds of joins that we care about (but see the above).
     # (1) complete trips on the left side, just append
     # (2) complete trips on the right side, just append
-    # (3) incomplete trips on the left side that do not appear on the right, these are cancels
+    # (3) incomplete trips on the left side that do not appear on the right, which we interpret
+    #     as cancellations. A future improvement would be to
     # (4) incomplete trips on the left side that do appear on the right, these are joiners
     # (5) incomplete trips on the right side that do not appear on the left, just append
     incomplete_trips_left = [unique_trip_id for unique_trip_id in left\
@@ -204,7 +204,7 @@ def _join_logbooks(left, left_timestamps, right, right_timestamps):
     # determine candidate right trips based on trip_id match
     # pick the one which appears in the first timestamp included in the right time slice
     # and run _join_trip_logs on that matched object
-    # if no such trip exists, this is a cancellation, so perform the requisite op
+    # if no such trip exists, this is a cancellation, so perform the requisite work
 
     for unique_trip_id_right in right:
         right_trip = right[unique_trip_id_right]
@@ -239,7 +239,7 @@ def _join_logbooks(left, left_timestamps, right, right_timestamps):
             left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
 
 
-    # for trips we did not find a a mat
+    # for trips we did not find a a match for
     # finalize trips that were incomplete in the left and also didn't appear in the right
     # this is whatever's left that's in the left_map after joins are done
     for trip_id in left_map:

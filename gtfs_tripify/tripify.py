@@ -1,3 +1,14 @@
+"""
+Module containing the main gtfs_tripify method, logify, which takes an update stream as input 
+and returns a logbook as output. Processing is done in two steps. First, the update stream is
+broken up by a unique_trip_id, which is inferred from the trip_id field and contextual information
+about trips with the same route_id which are aligned with one another. This is complicated by the
+fact that (1) trip_id values are not globally unique and are instead recycled by multiple trains
+over the course of a day and (2) end-to-end runs may have their trip_id reassigned without 
+warning. Then once the messages are aligned they are first transformed into action logs, and then
+those action logs are compacted into logs in a logbook.
+"""
+
 import itertools
 from collections import defaultdict
 import warnings
@@ -9,6 +20,13 @@ import pandas as pd
 from gtfs_tripify.utils import synthesize_route, finish_trip
 from gtfs_tripify.ops import drop_invalid_messages, parse_feed
 
+
+########################
+# INTERMEDIATE PARSERS #
+########################
+# dictify: GTFS-RT Protobuf -> <dict>
+# actionify: (dict<trip_message>, dict<vehicle_message>, int<timestamp>) -> DataFrame<action_log>
+# tripify: list<action_logs> -> DataFrame<trip_log>
 
 def dictify(buffer):
     """
@@ -99,105 +117,6 @@ def dictify(buffer):
             update['entity'].append(parsed_message)
 
     return update
-
-
-def collate_update(update, include_alerts=False):
-    """
-    Collates the messages in an update into a list with the following shape, which is convenient for
-    further processing:
-
-        [
-            {'trip_id': $TRIP_ID, 
-             'trip_update': $TRIP_UPDATE_MESSAGE,
-             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
-             'timestamp': $TIMESTAMP}, 
-            ...
-        ]
-
-    Implementation detail of `collate`.
-    """
-    if include_alerts:
-        raise NotImplementedError
-
-    # initially build a dict keyed in trip_id
-    keymap = defaultdict(dict)
-
-    for message in update['entity']:
-        if message['type'] == 'alert':
-            continue
-        if message['type'] == 'trip_update':
-            trip_id = message['trip_update']['trip']['trip_id']
-            keymap[trip_id]['trip_update'] = message
-        elif message['type'] == 'vehicle_update':
-            keymap[trip_id]['vehicle_update'] = message
-
-    ts = update['header']['timestamp']
-    keymap = {key: {'vehicle_update': None, 'timestamp': ts, **keymap[key]} for key in keymap}
-    return keymap
-
-
-def collate(updates, include_alerts=False):
-    """
-    Sorts the messages in a list of updates into a nested dict of messages keyed on a unique ID. 
-    Output is in the following format:
-
-    {
-        '$UNIQUE_TRIP_ID': [
-            {'trip_id': $TRIP_ID,
-             'trip_update': $TRIP_UPDATE_MESSAGE,
-             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
-             'timestamp': $TIMESTAMP},
-            ...
-        ],
-        ...
-    }
-
-    Note that the interior message is in the format returned by the `collate_update` subroutine, 
-    which handles collocation *within* an update, whilst this method handles collocation *between*
-    updates.
-
-    This method calculates a UUID for the `unique_trip_id`.
-    """
-    if include_alerts:
-        raise NotImplementedError("Processing alert messages has not been implemented yet.")
-
-    if len(updates) == 0:
-        return []
-
-    update_keymaps = [collate_update(update, include_alerts=include_alerts) for update in updates]
-    all_trip_ids = set()
-    for update_keymap in update_keymaps:
-        all_trip_ids.update(set(update_keymap.keys()))
-    all_trip_ids = list(all_trip_ids)
-
-    # Build a boolean matrix whose x_dim is trip_id and whose y_dim is time (update sequence number).
-    containment_matrix = np.vstack(
-        [np.isin(all_trip_ids, list(update_keymap.keys())) for update_keymap in update_keymaps]
-    )
-
-    # Parse the containment matrix to deduplicate trips with the same trip_id. E.g.:
-    #   $TRIP_ID: [True, True, True, False] -> one trip
-    #   $TRIP_ID: [True, True, False, True] -> two trips
-    out = defaultdict(list)
-
-    for j in range(len(all_trip_ids)):
-        previous_value = False
-        current_unique_trip_id = str(uuid.uuid1())
-        trip_id, trip_id_time_slice = all_trip_ids[j], containment_matrix[:, j]
-
-        for sequence_number, entry in enumerate(trip_id_time_slice):
-            if entry and previous_value is True:
-                out[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
-            elif entry and previous_value is False:
-                previous_value = True
-                current_unique_trip_id = str(uuid.uuid1())
-                out[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
-            elif not entry and previous_value is True:
-                previous_value = False
-            else:
-                continue
-
-    return out
 
 
 def actionify(trip_message, vehicle_message, timestamp):
@@ -293,23 +212,6 @@ def actionify(trip_message, vehicle_message, timestamp):
     # so we have to convert it back before returning
     action_log = action_log.assign(information_time=action_log.information_time.astype(int))
     return action_log
-
-
-def _parse_message_list_into_action_log(message_collection, timestamp):
-    """
-    Parses a list of messages into a single pandas.DataFrame.
-    """
-
-    actions_list = []
-
-    for message in message_collection:
-        trip_update = message['trip_update']
-        vehicle_update = message['vehicle_update']
-
-        actions = actionify(trip_update, vehicle_update, timestamp)
-        actions_list.append(actions)
-    
-    return pd.concat(actions_list)
 
 
 def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
@@ -415,6 +317,173 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
     return trip, timestamps
 
 
+###############
+# COLLOCATION #
+###############
+# These methods, which run early in the build process, break raw message streams into uniquified
+# per-trip message lists.
+
+def collate_update(update, include_alerts=False):
+    """
+    Collates the messages in an update into a list with the following shape, which is convenient for
+    further processing:
+
+        [
+            {'trip_id': $TRIP_ID, 
+             'trip_update': $TRIP_UPDATE_MESSAGE,
+             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
+             'timestamp': $TIMESTAMP}, 
+            ...
+        ]
+
+    Implementation detail of `collate`.
+    """
+    if include_alerts:
+        raise NotImplementedError
+
+    # initially build a dict keyed in trip_id
+    keymap = defaultdict(dict)
+
+    for message in update['entity']:
+        if message['type'] == 'alert':
+            continue
+        if message['type'] == 'trip_update':
+            trip_id = message['trip_update']['trip']['trip_id']
+            keymap[trip_id]['trip_update'] = message
+        elif message['type'] == 'vehicle_update':
+            keymap[trip_id]['vehicle_update'] = message
+
+    ts = update['header']['timestamp']
+    keymap = {key: {'vehicle_update': None, 'timestamp': ts, **keymap[key]} for key in keymap}
+    return keymap
+
+
+def collate(updates, include_alerts=False):
+    """
+    Sorts the messages in a list of updates into a nested dict of messages keyed on a unique ID. 
+    Output is in the following format:
+
+    {
+        '$UNIQUE_TRIP_ID': [
+            {'trip_id': $TRIP_ID,
+             'trip_update': $TRIP_UPDATE_MESSAGE,
+             'vehicle_update': $VEHICLE_UPDATE_MESSAGE,
+             'timestamp': $TIMESTAMP},
+            ...
+        ],
+        ...
+    }
+
+    Note that the interior message is in the format returned by the `collate_update` subroutine, 
+    which handles collocation *within* an update, whilst this method handles collocation *between*
+    updates.
+
+    This method calculates a UUID for the `unique_trip_id`.
+    """
+    if include_alerts:
+        raise NotImplementedError("Processing alert messages has not been implemented yet.")
+
+    if len(updates) == 0:
+        return []
+
+    update_keymaps = [collate_update(update, include_alerts=include_alerts) for update in updates]
+    all_trip_ids = set()
+    for update_keymap in update_keymaps:
+        all_trip_ids.update(set(update_keymap.keys()))
+    all_trip_ids = list(all_trip_ids)
+
+    # Build a boolean matrix whose x_dim is trip_id and whose y_dim is time (update sequence 
+    # number).
+    containment_matrix = np.vstack(
+        [np.isin(all_trip_ids, list(update_keymap.keys())) for update_keymap in update_keymaps]
+    )
+
+    # Parse the containment matrix to deduplicate trips with the same trip_id. E.g.:
+    #   $TRIP_ID: [True, True, True, False] -> one trip
+    #   $TRIP_ID: [True, True, False, True] -> two trips
+    interim = defaultdict(list)
+
+    for j in range(len(all_trip_ids)):
+        previous_value = False
+        current_unique_trip_id = str(uuid.uuid1())
+        trip_id, trip_id_time_slice = all_trip_ids[j], containment_matrix[:, j]
+
+        for sequence_number, entry in enumerate(trip_id_time_slice):
+            if entry and previous_value is True:
+                interim[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
+            elif entry and previous_value is False:
+                previous_value = True
+                current_unique_trip_id = str(uuid.uuid1())
+                interim[current_unique_trip_id].append(update_keymaps[sequence_number][trip_id])
+            elif not entry and previous_value is True:
+                previous_value = False
+            else:
+                continue
+
+    # combine trips, as indexed by trip_id, that that are "obviously" (hueristically) the same
+    # trip:
+    # * an old trip ended (disappeared) in update N
+    # * a new trip started (appeared) in update N
+    #   note: we intrinsically assume that the ID swap operation is atomic!
+    # * the old and new trips share a route id (e.g. both are B trains)
+    # * the new trip starts with the first remaining planned stop in the old trip
+    st_map = dict()
+    out = dict()
+
+    # need to do this in two passes, first building a struct of all potential matches
+    for uid in interim:
+        route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
+        start_timestamp = interim[uid][0]['timestamp']
+
+        if route_id in st_map:
+            if start_timestamp in st_map[route_id]:
+                st_map[route_id][start_timestamp].append(uid)
+            else:
+                st_map[route_id][start_timestamp] = [uid]
+        else:
+            st_map[route_id] = {start_timestamp: [uid]}
+
+    # then analyzing those potential matches one-by-one in detail
+    timestamp_sequence = [u['header']['timestamp'] for u in updates]
+    already_merged = set()
+    for uid in interim:
+        route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
+        last_timestamp = interim[uid][-1]['timestamp']
+
+        end_index = timestamp_sequence.index(last_timestamp) + 1
+        if end_index >= len(timestamp_sequence):
+            continue  # the trip never terminated so we are done
+
+        end_timestamp = timestamp_sequence[
+            timestamp_sequence.index(last_timestamp) + 1
+        ]
+        if end_timestamp not in st_map[route_id] and uid not in already_merged:
+            continue  # no other trips on this route started at this time so we are done
+
+        possible_matches = set(st_map[route_id][end_timestamp]).difference(already_merged)
+        for candidate_uid in possible_matches:
+            current_first_remaining_stop = interim[uid][-1]['trip_update']['trip_update']\
+                ['stop_time_update'][0]['stop_id']
+            candidate_initial_stop = interim[candidate_uid][0]['trip_update']\
+                ['trip_update']['stop_time_update'][0]['stop_id']
+
+            if (candidate_uid != uid and
+                candidate_initial_stop == current_first_remaining_stop):
+                out[uid] = interim[uid] + interim[candidate_uid]
+                already_merged.update({candidate_uid})
+                break
+
+    for uid in interim:
+        if uid not in out and uid not in already_merged:
+            out[uid] = interim[uid]
+
+    return out
+
+
+######################
+# USER_FACING METHOD #
+######################
+
 def logify(updates):
     """
     Given a list of feed updates, returns a logbook associated with each trip mentioned in those
@@ -425,9 +494,18 @@ def logify(updates):
     if updates == []:
         return dict()
 
+    def _parse_message_list_into_action_log(message_collection, timestamp):
+        actions_list = []
+        for message in message_collection:
+            trip_update = message['trip_update']
+            vehicle_update = message['vehicle_update']
+            actions = actionify(trip_update, vehicle_update, timestamp)
+            actions_list.append(actions)
+        return pd.concat(actions_list)
+
     # Accept either raw Protobuf updates or already-parsed dict updates.
     if not isinstance(updates[0], dict):
-        updates = filter([parse_feed(update) for update in updates])
+        updates = filter(None, [parse_feed(update) for update in updates])
         updates = [dictify(update) for update in updates]
         updates = [drop_invalid_messages(update) for update in updates]
 
