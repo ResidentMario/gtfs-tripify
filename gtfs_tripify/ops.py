@@ -274,8 +274,8 @@ def _join_trip_logs(left, right):
     right_stations = set(right['stop_id'].values)
 
     # Combine the station information in last-precedent order.
-    l_i = r_i = 0
-    left_indices, right_indices = [], []
+    l_i = 0
+    left_indices = []
 
     for station in stations:
         if station not in right_stations:
@@ -380,22 +380,34 @@ def parse_feed(filepath):
                 return None
 
 
-def to_gtfs(logbook, filename):
+def to_gtfs(logbook, filename, tz=None):
     """
-    Convert a logbook into a GTFS file. Returns a pandas DataFrame. Some important things to
-    keep in mind when using this method:
+    Convert a logbook into relevant GTFS entries. Some important things to keep in mind when 
+    using this method:
 
     * If there is no known minimum_time for a stop, a time 15 seconds before the maximum_time
       will be imputed. GTFS does not allow for null values.
     * If there is no known maximum time for a stop, the stop will not be included in the file.
-    * If the train is still en route to a stop, tht stop will not be inclued in the file.
+    * If the train is still en route to a stop, that stop will not be included in the file.
     """
     rows = []
-    tz = pytz.timezone("US/Eastern")
+    tz = tz if tz is not None else pytz.timezone("US/Eastern")
     for unique_trip_id in logbook:
         log = logbook[unique_trip_id]
         for idx, srs in log.iterrows():
-            if (srs['action'] != 'EN_ROUTE_TO' and pd.notnull(srs['maximum_time'])):
+            if srs['action'] == 'EN_ROUTE_TO':
+                warnings.warn(
+                    f'{unique_trip_id} contains stops which the train is still EN_ROUTE_TO, '
+                    f'which were not written to the output for lack of completeness. It is '
+                    f'recommended to only run to_gtfs on complete logbooks.'
+                )
+            elif pd.isnull(srs['maximum_time']):
+                warnings.warn(
+                    f'{unique_trip_id} contains stops with no known departure time. These '
+                    f'stops were not written to the output for lack of completeness. It is '
+                    f'recommended to only run to_gtfs on complete logbooks.'
+                )
+            else:
                 if pd.notnull(srs['minimum_time']): 
                     arrival_timestamp = srs['minimum_time']
                 else:

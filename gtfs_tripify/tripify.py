@@ -11,7 +11,6 @@ those action logs are compacted into logs in a logbook.
 
 import itertools
 from collections import defaultdict
-import warnings
 import uuid
 
 import numpy as np
