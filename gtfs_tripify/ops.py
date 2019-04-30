@@ -122,6 +122,28 @@ def drop_invalid_messages(update):
     return update
 
 
+def drop_duplicate_messages(updates):
+    if updates == []:
+        return []
+
+    ts_prior = updates[0]['header']['timestamp']
+    out = [updates[0]]
+
+    for idx in range(1, len(updates)):
+        ts_curr = updates[idx]['header']['timestamp']
+        if ts_curr == ts_prior:
+            warnings.warn(
+                f"There are multiple messages in the GTFS-R update for timestamp "
+                f"{updates[idx]['header']['timestamp']}. The duplicate updates were removed "
+                f"during pre-processing."
+            )
+        else:
+            out.append(updates[idx])
+        ts_prior = ts_curr
+
+    return out
+
+
 def partition_on_incomplete(logbook, timestamps):
     """
     Partitions a logbook (and associated timestamps) into two parts: a logbook with complete
@@ -479,5 +501,5 @@ def from_csv(filename):
 
 __all__ = [
     'cut_cancellations', 'discard_partial_logs', 'drop_invalid_messages', 
-    'partition_on_incomplete', 'merge_logbooks', 'parse_feed'
+    'drop_duplicate_messages', 'partition_on_incomplete', 'merge_logbooks', 'parse_feed'
 ]

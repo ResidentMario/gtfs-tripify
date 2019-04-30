@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from gtfs_tripify.utils import synthesize_route, finish_trip
-from gtfs_tripify.ops import drop_invalid_messages, parse_feed
+from gtfs_tripify.ops import drop_invalid_messages, drop_duplicate_messages, parse_feed
 
 
 ########################
@@ -507,6 +507,7 @@ def logify(updates):
         updates = filter(None, [parse_feed(update) for update in updates])
         updates = [dictify(update) for update in updates]
         updates = [drop_invalid_messages(update) for update in updates]
+        updates = drop_duplicate_messages(updates)
 
     last_timestamp = updates[-1]['header']['timestamp']
 
