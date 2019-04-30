@@ -68,6 +68,7 @@ def finish_trip(trip_log, timestamp):
     return trip_log
 
 
+# TODO: use a datetime as input instead of a string, as in `load_mytransit_archived_feeds`
 def load_mta_archived_feed(feed='gtfs', timestamp='2014-09-17-09-31'):
     """
     Returns archived GTFS data for a particular time_assigned.
@@ -110,10 +111,11 @@ def load_mytransit_archived_feeds(timestamp=datetime.datetime(2017, 1, 1, 12, 0)
         f.write(requests.get(uri).content)
 
     archive = tarfile.open(temp_filename, 'r')
+    names = [member.name for member in archive.getmembers()]
     messages = [archive.extractfile(f) for f in archive.getmembers()]
     os.remove(temp_filename)
 
-    return messages
+    return messages, names
 
 __all__ = [
     'synthesize_route', 'finish_trip', 'load_mta_archived_feed', 'load_mytransit_archived_feeds'

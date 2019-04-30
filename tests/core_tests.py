@@ -14,6 +14,18 @@ from gtfs_tripify.tripify import dictify, actionify, logify, tripify, drop_inval
 from gtfs_tripify.ops import join_logbooks
 
 
+# some of these tests use ./fixtures/gtfs-* fixtures.
+# you can recreate these fixtures yourself from archival data by running the following:
+# import gtfs_tripify as gt; import datetime
+#  messages, dates =\
+#      gt.utils.load_mytransit_archived_feeds(timestamp=datetime.datetime(2016, 5, 12, 4, 0))
+# addtl_fixtures = [(message, name) for (message, name) in zip(messages, names) if (
+#   'gtfs-20160512T04' in name or 'gtfs-20160512T0500Z' in name
+# )]
+# for message, name in addtl_fixtures: 
+#     with open('fixtures/' + name, 'wb') as fp: 
+#         fp.write(message.read())
+
 class TestDictify(unittest.TestCase):
     def setUp(self):
         with open("./fixtures/gtfs-20160512T0400Z", "rb") as f:
@@ -828,9 +840,6 @@ class TripLogFinalizationTests(unittest.TestCase):
     this procedure is provided as a separate method.
 
     These tests ascertain that said method, `_finish_trip`, works as advertised.
-
-    NB: it's easier to test this using this internal method because the requisite forward-facing method relies on the
-    Google protobuf wrapper library, which produces objects that are neither constructable nor mutable.
     """
     def test_finalize_no_op(self):
         """
@@ -866,7 +875,7 @@ class TripLogFinalizationTests(unittest.TestCase):
         assert list(result['maximum_time'].astype(int).values) == [42, 42]
 
 
-class TripLogbookTests(unittest.TestCase):
+class LogbookTests(unittest.TestCase):
     """
     Smoke tests for generating trip logbooks and merging them.
     """
@@ -886,6 +895,23 @@ class TripLogbookTests(unittest.TestCase):
         logbook, _ = logify([self.log_0, self.log_1])
         assert len(logbook) == 94
 
+
+class LogbookJoinTests(unittest.TestCase):
+    """
+    These tests make sure that the logbook join logic is correct.
+    """
+    def setUp(self):
+        with open("./fixtures/gtfs-20160512T0400Z", "rb") as f:
+            gtfs_0 = gtfs_realtime_pb2.FeedMessage()
+            gtfs_0.ParseFromString(f.read())
+
+        with open("./fixtures/gtfs-20160512T0401Z", "rb") as f:
+            gtfs_1 = gtfs_realtime_pb2.FeedMessage()
+            gtfs_1.ParseFromString(f.read())
+
+        self.log_0 = dictify(gtfs_0)
+        self.log_1 = dictify(gtfs_1)
+
     def test_logbook_join(self):
         left, left_timestamps = logify([self.log_0])
         right, right_timestamps = logify([self.log_1])
@@ -896,13 +922,7 @@ class TripLogbookTests(unittest.TestCase):
         assert (result[list(result.keys())[0]].head(1) !=
                 left[list(result.keys())[0]].head(1)).any().any()
         assert len(result_timestamps) == 94
-        assert all([result_timestamps[uid] == [1463025455, 1463025494] for uid in result_timestamps])
 
-
-class LogbookJoinLogicTests(unittest.TestCase):
-    """
-    These tests make sure that the logbook join logic is correct.
-    """
     def test_trivial_join(self):
         """In the trivial case one or the other or both logbooks are actually empty."""
         information_time = 0
@@ -1013,3 +1033,125 @@ class LogbookJoinLogicTests(unittest.TestCase):
             left_logbook, left_timestamps, right_logbook, right_timestamps
         )
         assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED']
+
+
+class LogbookTripMergeTests(unittest.TestCase):
+    """
+    End-to-end runs are not unique on trip_id and may be broken up into several trip segments.
+    These tests ascertain that the heuristic we are using for detecting and concatenating the
+    subset of such segments that are actually a single trip works as expected.
+    """
+
+    def test_logbook_trip_merge_static(self):
+        """
+        A merge where only the trip_id has changed.
+        """
+        trip_message_1 = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': ''},
+                'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
+                ]
+            }
+        }
+        trip_message_2 = {
+            'id': '000002',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': ''},
+                'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
+                ]
+            }
+        }
+        feed_1 = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025417},
+            'entity': [trip_message_1]
+        }
+        feed_2 = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025418},
+            'entity': [trip_message_2]
+        }
+
+        result, _ = logify([feed_1, feed_2])
+        assert len(result) == 1
+
+    def test_logbook_trip_merge(self):
+        """
+        A merge where the trip_id and incoming status has changed.
+        """
+        trip_message_1 = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': '1'},
+                'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
+                ]
+            }
+        }
+        vehicle_message_1 = {
+            'id': '000002',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'STOPPED_AT',
+                'current_stop_sequence': 34,
+                'stop_id': '102S',
+                'timestamp': 1463025417,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160512',
+                    'trip_id': '1'
+                }
+            }
+        }
+        trip_message_2 = {
+            'id': '000001',
+            'type': 'trip_update',
+            'trip_update': {
+                'trip': {'route_id': '1',
+                         'start_date': '20160512',
+                         'trip_id': '2'},
+                'stop_time_update': [
+                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
+                ]
+            }
+        }
+        vehicle_message_2 = {
+            'id': '000002',
+            'type': 'vehicle_update',
+            'vehicle': {
+                'current_status': 'INCOMING_AT',
+                'current_stop_sequence': 34,
+                'stop_id': '103S',
+                'timestamp': 1463025418,
+                'trip': {
+                    'route_id': '1',
+                    'start_date': '20160512',
+                    'trip_id': '2'
+                }
+            }
+        }
+        feed_1 = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025417},
+            'entity': [trip_message_1, vehicle_message_1]
+        }
+        feed_2 = {
+            'header': {'gtfs_realtime_version': 1,
+                       'timestamp': 1463025418},
+            'entity': [trip_message_2, vehicle_message_2]
+        }
+
+        result, _ = logify([feed_1, feed_2])
+        assert len(result) == 1
