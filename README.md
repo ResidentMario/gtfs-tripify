@@ -138,6 +138,8 @@ combined_logbook, combined_logbook_timestamps = gt.ops.merge(
 )
 ```
 
+**Note**: the `trip_id` field in a GTFS-RT feed may be reassigned to a new train mid-trip and without warning. `gt.logify` can catch and correct this in many (but not all!) cases, `gt.ops.merge` cannot and, in the case that the reassignment happens to occur in the space in between two logbooks, will record two separate partial trips instead. So it's highly recommended to only merge large logbooks, to help avoid "trip fragmentation".
+
 ## Further reading
 
 I have written two blog posts about the technical challenges and application posibilities of this library:
