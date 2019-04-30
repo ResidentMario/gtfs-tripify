@@ -166,8 +166,8 @@ def partition_on_route_id(logbook, timestamps):
 # MERGING LOGBOOKS #
 ####################
 
-# This code painfully duplicates a lot of work in tripify.py, but it would be difficult
-# to write something logical that works otherwise.
+# This code painfully duplicates a lot of logic in tripify.py, but it would be difficult
+# to write something logical (from a UX perspective) otherwise.
 def merge_logbooks(logbook_tuples):
     """
     Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in 
@@ -380,15 +380,17 @@ def parse_feed(filepath):
                 return None
 
 
-def to_gtfs(logbook, filename, tz=None):
+def to_gtfs(logbook, filename, tz=None, output=False):
     """
-    Convert a logbook into relevant GTFS entries. Some important things to keep in mind when 
+    Write a logbook into a GTFS stops.txt record. Some important things to keep in mind when 
     using this method:
 
     * If there is no known minimum_time for a stop, a time 15 seconds before the maximum_time
       will be imputed. GTFS does not allow for null values.
     * If there is no known maximum time for a stop, the stop will not be included in the file.
     * If the train is still en route to a stop, that stop will not be included in the file.
+
+    It's recommended you only use to_gtfs on complete logbooks.
     """
     rows = []
     tz = tz if tz is not None else pytz.timezone("US/Eastern")
@@ -411,6 +413,12 @@ def to_gtfs(logbook, filename, tz=None):
                 if pd.notnull(srs['minimum_time']): 
                     arrival_timestamp = srs['minimum_time']
                 else:
+                    warnings.warn(
+                        f'{unique_trip_id} contains stops with no known arrival time. These '
+                        f'stops will be assigned an inferred arrival time of 15 seconds prior '
+                        f'to their departure time. It is recommended to only run to_gtfs on '
+                        f'complete logbooks.'
+                    )
                     arrival_timestamp = (
                         datetime.utcfromtimestamp(srs['maximum_time']) 
                         - timedelta(seconds=15)
@@ -431,7 +439,8 @@ def to_gtfs(logbook, filename, tz=None):
                         idx + 1, 0, 0
                     ]
                 )
-    return pd.DataFrame(
+
+    out = pd.DataFrame(
         rows,
         columns=[
             'trip_id', 'arrival_time', 'departure_time', 'stop_id', 'stop_sequence', 
@@ -439,57 +448,36 @@ def to_gtfs(logbook, filename, tz=None):
         ]
     )
 
+    if output:
+        return out
+    else:
+        out.to_csv(filename, index=False)
 
-def logbook_to_sql(logbook, conn):
+
+def to_csv(logbook, filename, output=False):
     """
-    Write a logbook to a SQL database in a durable manner.
+    Write a logbook to a CSV file.
     """
-    raise NotImplementedError
-    # # Initialize the database.
-    # c = conn.cursor()
-    # c.execute("""
-    # CREATE TABLE IF NOT EXISTS Logbooks (
-    # "event_id" INTEGER PRIMARY KEY,
-    # "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
-    # "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
-    # "stop_id" TEXT, "latest_information_time" TEXT
-    # );""")
-    # conn.commit()
+    logs = []
+    for unique_trip_id in logbook:
+        log = logbook[unique_trip_id].assign(unique_trip_id=unique_trip_id)
+        logs.append(log)
 
-    # database_unique_ids = set(
-    #     [r[0] for r in c.execute("""SELECT DISTINCT unique_trip_id FROM Logbooks;""").fetchall()]
-    # )
-    # root_id_modifier_pairs = set((did[:-2], int(did[-1:])) for did in database_unique_ids)
-
-    # if len(logbook) > 0:
-    #     pd.concat(
-    #         (logbook[trip_id]
-    #             .assign(unique_trip_id=trip_id)
-    #             [['trip_id', 'unique_trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
-    #                 'latest_information_time']]
-    #         ) for trip_id in logbook.keys()
-    #     ).to_sql('Logbooks', conn, if_exists='append', index=False)
-    #     c.close()
+    if output:
+        return pd.concat(logs)
+    else:
+        return pd.concat(logs).to_csv(filename, index=False)
 
 
-def stream_to_sql(stream, conn, transform=None):
+def from_csv(filename):
     """
-    Write the logbook generated from a parsed Protobuf stream into a SQL database in a durable 
-    manner. To transform the data in the logbook before writing to the database, provide a 
-    method doing so to the `transform` parameter.
+    Read a logbook from a CSV file.
     """
-    from gtfs_tripify.tripify import logify
-    logbook, _ = logify(stream)
-    
-    del stream
-
-    if transform:
-        logbook = transform(logbook)
-
-    logbook_to_sql(logbook, conn)
+    g = pd.read_csv(filename).groupby('unique_trip_id')
+    return {k: df.drop(columns='unique_trip_id') for k, df in g}
 
 
 __all__ = [
     'cut_cancellations', 'discard_partial_logs', 'drop_invalid_messages', 
-    'partition_on_incomplete', 'merge_logbooks', 'parse_feed', 'stream_to_sql'
+    'partition_on_incomplete', 'merge_logbooks', 'parse_feed'
 ]

@@ -14,7 +14,7 @@ Begin by running the following to install this package on your local machine:
 pip install git+git://github.com/ResidentMario/gtfs-tripify.git@master
 ```
 
-First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf
+First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf.
 
 ```python
 # Load GTFS-Realtime feeds.
@@ -139,6 +139,8 @@ combined_logbook, combined_logbook_timestamps = gt.ops.merge(
 ```
 
 **Note**: the `trip_id` field in a GTFS-RT feed may be reassigned to a new train mid-trip and without warning. `gt.logify` can catch and correct this in many (but not all!) cases, `gt.ops.merge` cannot and, in the case that the reassignment happens to occur in the space in between two logbooks, will record two separate partial trips instead. So it's highly recommended to only merge large logbooks, to help avoid "trip fragmentation".
+
+Finally, you may save a logbook to disk. There are a couple of methods for doing so: `gt.ops.to_csv` (and its companion `gt.ops.from_csv`), which will write a logbook to disk as a CSV file, and `gt.ops.to_gtfs`, which will write a logbook to disk as a GTFS `stop.txt` record. You should only use `gt.ops.to_gfst` on complete logbooks (e.g., ones which you have run `gt.ops.cut_cancellations` and `gt.ops.discard_partial_logs` on), as the GTFS spec allows neither null values nor hypothetical stops in `stops.txt`, so the offending stop records will be ignored.
 
 ## Further reading
 
