@@ -5,6 +5,8 @@ Operations defined on logbooks.
 import warnings
 import itertools
 from collections import defaultdict
+from datetime import datetime, timedelta
+import pytz
 
 import numpy as np
 import pandas as pd
@@ -12,6 +14,10 @@ from google.transit import gtfs_realtime_pb2
 
 from gtfs_tripify.utils import synthesize_route, finish_trip
 
+
+##############
+# HEURISTICS #
+##############
 
 def cut_cancellations(logbook):
     """
@@ -54,6 +60,7 @@ def discard_partial_logs(logbook):
     likely to be partial because we do not get to "see" every single message corresponding with 
     the trip, as some are outside our "viewing window".
     """
+    # TODO: verify this method still works as expected
     trim = logbook.copy()
 
     times = np.array(
@@ -155,14 +162,12 @@ def partition_on_route_id(logbook, timestamps):
     return route_logbooks, route_timestamps
 
 
-# The core logic in merge_logbooks duplications operations also defined in gt.tripify.collate.
-# The difference is that collate works on action logs whilst merge works on logbooks.
-# It would be possible to reuse the logic in collate here, instead of writing novel and
-# duplicituous internal routines. However, this would require changing the API: augmenting the
-# concept of "incomplete logbooks" with external exposure of the concept of "incomplete action 
-# logs". From a UX perspective, it's "better" to maintain a seperate function that operates on 
-# logbooks, even if this ultimately causes some duplication. Also this is how the library was
-# originally coded up, and integrating the logic of these two functions would be a lot of work!
+####################
+# MERGING LOGBOOKS #
+####################
+
+# This code painfully duplicates a lot of work in tripify.py, but it would be difficult
+# to write something logical that works otherwise.
 def merge_logbooks(logbook_tuples):
     """
     Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in 
@@ -337,37 +342,9 @@ def _join_trip_logs(left, right):
     return join
 
 
-def logbook_to_sql(logbook, conn):
-    """
-    Write a logbook to a SQL database in a durable manner.
-    """
-    raise NotImplementedError
-    # # Initialize the database.
-    # c = conn.cursor()
-    # c.execute("""
-    # CREATE TABLE IF NOT EXISTS Logbooks (
-    # "event_id" INTEGER PRIMARY KEY,
-    # "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
-    # "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
-    # "stop_id" TEXT, "latest_information_time" TEXT
-    # );""")
-    # conn.commit()
-
-    # database_unique_ids = set(
-    #     [r[0] for r in c.execute("""SELECT DISTINCT unique_trip_id FROM Logbooks;""").fetchall()]
-    # )
-    # root_id_modifier_pairs = set((did[:-2], int(did[-1:])) for did in database_unique_ids)
-
-    # if len(logbook) > 0:
-    #     pd.concat(
-    #         (logbook[trip_id]
-    #             .assign(unique_trip_id=trip_id)
-    #             [['trip_id', 'unique_trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
-    #                 'latest_information_time']]
-    #         ) for trip_id in logbook.keys()
-    #     ).to_sql('Logbooks', conn, if_exists='append', index=False)
-    #     c.close()
-
+#######
+# I/O #
+#######
 
 def parse_feed(filepath):
     """
@@ -401,6 +378,86 @@ def parse_feed(filepath):
             # Return the same None flag value for all other (Protobuf-thrown) errors.
             except:
                 return None
+
+
+def to_gtfs(logbook, filename):
+    """
+    Convert a logbook into a GTFS file. Returns a pandas DataFrame. Some important things to
+    keep in mind when using this method:
+
+    * If there is no known minimum_time for a stop, a time 15 seconds before the maximum_time
+      will be imputed. GTFS does not allow for null values.
+    * If there is no known maximum time for a stop, the stop will not be included in the file.
+    * If the train is still en route to a stop, tht stop will not be inclued in the file.
+    """
+    rows = []
+    tz = pytz.timezone("US/Eastern")
+    for unique_trip_id in logbook:
+        log = logbook[unique_trip_id]
+        for idx, srs in log.iterrows():
+            if (srs['action'] != 'EN_ROUTE_TO' and pd.notnull(srs['maximum_time'])):
+                if pd.notnull(srs['minimum_time']): 
+                    arrival_timestamp = srs['minimum_time']
+                else:
+                    arrival_timestamp = (
+                        datetime.utcfromtimestamp(srs['maximum_time']) 
+                        - timedelta(seconds=15)
+                    ).timestamp()
+                departure_timestamp = srs['maximum_time']
+                arrival_time = tz.localize(
+                    datetime.utcfromtimestamp(arrival_timestamp), is_dst=None
+                ).strftime('%H:%M:%S')
+                departure_time = tz.localize(
+                    datetime.utcfromtimestamp(departure_timestamp), is_dst=None
+                ).strftime('%H:%M:%S')
+                rows.append(
+                    [
+                        unique_trip_id, 
+                        arrival_time,
+                        departure_time,
+                        srs['stop_id'],
+                        idx + 1, 0, 0
+                    ]
+                )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            'trip_id', 'arrival_time', 'departure_time', 'stop_id', 'stop_sequence', 
+            'pickup_type', 'drop_off_type'
+        ]
+    )
+
+
+def logbook_to_sql(logbook, conn):
+    """
+    Write a logbook to a SQL database in a durable manner.
+    """
+    raise NotImplementedError
+    # # Initialize the database.
+    # c = conn.cursor()
+    # c.execute("""
+    # CREATE TABLE IF NOT EXISTS Logbooks (
+    # "event_id" INTEGER PRIMARY KEY,
+    # "trip_id" TEXT, "unique_trip_id" INTEGER, "route_id" TEXT, 
+    # "action" TEXT, "minimum_time" REAL, "maximum_time" REAL,
+    # "stop_id" TEXT, "latest_information_time" TEXT
+    # );""")
+    # conn.commit()
+
+    # database_unique_ids = set(
+    #     [r[0] for r in c.execute("""SELECT DISTINCT unique_trip_id FROM Logbooks;""").fetchall()]
+    # )
+    # root_id_modifier_pairs = set((did[:-2], int(did[-1:])) for did in database_unique_ids)
+
+    # if len(logbook) > 0:
+    #     pd.concat(
+    #         (logbook[trip_id]
+    #             .assign(unique_trip_id=trip_id)
+    #             [['trip_id', 'unique_trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
+    #                 'latest_information_time']]
+    #         ) for trip_id in logbook.keys()
+    #     ).to_sql('Logbooks', conn, if_exists='append', index=False)
+    #     c.close()
 
 
 def stream_to_sql(stream, conn, transform=None):
