@@ -49,7 +49,9 @@ def cut_cancellations(logbook):
                 return log
 
     for unique_trip_id in logbook:
-        logbook[unique_trip_id] = cut_cancellations_log(logbook[unique_trip_id])
+        updated_log = cut_cancellations_log(logbook[unique_trip_id])
+        if len(updated_log) > 0:
+            logbook[unique_trip_id] = updated_log
 
     return logbook
 
@@ -208,9 +210,9 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
     """
     # Trivial cases.
     if len(right) == 0:
-        return left
+        return left, left_timestamps
     if len(left) == 0:
-        return right
+        return right, right_timestamps
 
     # TODO: attempt to reroot trips that cancel in between logbooks instead of always cancelling
     # There are five kinds of joins that we care about (but see the above).
@@ -368,7 +370,7 @@ def _join_trip_logs(left, right):
 # I/O #
 #######
 
-def parse_feed(filepath):
+def parse_feed(bytes):
     """
     Helper function for reading a feed in using Protobuf. 
     Handles bad feeds by replacing them with None.
@@ -377,29 +379,28 @@ def parse_feed(filepath):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
 
-        with open(filepath, "rb") as f:
-            try:
-                fm = gtfs_realtime_pb2.FeedMessage()
-                fm.ParseFromString(f.read())
-                return fm
+        try:
+            fm = gtfs_realtime_pb2.FeedMessage()
+            fm.ParseFromString(bytes)
+            return fm
 
-            # Protobuf occasionally raises an unexpected tag RuntimeWarning. This occurs when a
-            # feed that we read has unexpected problems, but is still valid overall. This 
-            # warning corresponds with data loss in most cases. `gtfs-tripify` is sensitive to the
-            # disappearance of trips in the record. If data is lost, it's best to excise the 
-            # message entirely. Hence we catch these warnings and return a flag value None, to be
-            # taken into account upstream. For further information see the following thread:
-            # https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
-            except RuntimeWarning:
-                return None
+        # Protobuf occasionally raises an unexpected tag RuntimeWarning. This occurs when a
+        # feed that we read has unexpected problems, but is still valid overall. This 
+        # warning corresponds with data loss in most cases. `gtfs-tripify` is sensitive to the
+        # disappearance of trips in the record. If data is lost, it's best to excise the 
+        # message entirely. Hence we catch these warnings and return a flag value None, to be
+        # taken into account upstream. For further information see the following thread:
+        # https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
+        except RuntimeWarning:
+            return None
 
-            # Raise for system and user interrupt signals.
-            except (KeyboardInterrupt, SystemExit):
-                raise
+        # Raise for system and user interrupt signals.
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
-            # Return the same None flag value for all other (Protobuf-thrown) errors.
-            except:
-                return None
+        # Return the same None flag value for all other (Protobuf-thrown) errors.
+        except:
+            return None
 
 
 def to_gtfs(logbook, filename, tz=None, output=False):
