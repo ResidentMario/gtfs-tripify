@@ -657,7 +657,7 @@ class TripLogUnaryTests(unittest.TestCase):
             create_mock_action_log(
                 actions=[
                     'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
-                    'EXPECTED_TO_ARRIVE_AT
+                    'EXPECTED_TO_ARRIVE_AT'
                 ],
                 stops=['999X', '998X', '998X', '997X'])
         ]
