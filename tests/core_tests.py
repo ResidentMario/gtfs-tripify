@@ -511,9 +511,10 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = drop_invalid_messages(feed)
+            feed, parse_errors = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
+        assert len(parse_errors) == 2
 
     def test_empty_trip_id(self):
         """
@@ -542,9 +543,10 @@ class TestCorrectFeed(unittest.TestCase):
 
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = drop_invalid_messages(feed)
+            feed, parse_errors = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
+        assert len(parse_errors) == 1
 
     def test_empty_trip_id_2(self):
         feed = {'header': {'timestamp': 1},
@@ -559,9 +561,10 @@ class TestCorrectFeed(unittest.TestCase):
                                                  'start_date': ''}}}]}
         # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
-            feed = drop_invalid_messages(feed)
+            feed, parse_errors = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
+        assert len(parse_errors) == 1
 
 
 def create_mock_action_log(actions=None, stops=None, information_time=0, trip_id=None):
@@ -892,7 +895,7 @@ class LogbookTests(unittest.TestCase):
         self.log_1 = dictify(gtfs_1)
 
     def test_logbook(self):
-        logbook, _ = logify([self.log_0, self.log_1])
+        logbook, _, _ = logify([self.log_0, self.log_1])
         assert len(logbook) == 94
 
 
@@ -913,8 +916,8 @@ class LogbookJoinTests(unittest.TestCase):
         self.log_1 = dictify(gtfs_1)
 
     def test_logbook_join(self):
-        left, left_timestamps = logify([self.log_0])
-        right, right_timestamps = logify([self.log_1])
+        left, left_timestamps, _ = logify([self.log_0])
+        right, right_timestamps, _ = logify([self.log_1])
 
         result, result_timestamps = join_logbooks(left, left_timestamps, right, right_timestamps)
         assert len(result) == 94
@@ -936,17 +939,16 @@ class LogbookJoinTests(unittest.TestCase):
 
         # empty right and nonempty left
         empty_logbook, empty_timestamps = pd.DataFrame(columns=trip.columns), dict()
-        result = join_logbooks(logbook, timestamps, empty_logbook, empty_timestamps)
+        result, _ = join_logbooks(logbook, timestamps, empty_logbook, empty_timestamps)
         assert result.keys() == logbook.keys()
 
         # empty left and nonempty right
-        result = join_logbooks(empty_logbook, empty_timestamps, logbook, timestamps)
+        result, _ = join_logbooks(empty_logbook, empty_timestamps, logbook, timestamps)
         assert result.keys() == logbook.keys()
 
         # both empty
-        assert len(
-            join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
-        ) == 0
+        result, _ = join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
+        assert len(result) == 0
 
     def test_only_complete_trips(self):
         """The simplest non-trivial case: trips on either side are complete and just get merged in."""
@@ -1081,7 +1083,7 @@ class LogbookTripMergeTests(unittest.TestCase):
             'entity': [trip_message_2]
         }
 
-        result, _ = logify([feed_1, feed_2])
+        result, _, _ = logify([feed_1, feed_2])
         assert len(result) == 1
 
     def test_logbook_trip_merge(self):
@@ -1153,5 +1155,5 @@ class LogbookTripMergeTests(unittest.TestCase):
             'entity': [trip_message_2, vehicle_message_2]
         }
 
-        result, _ = logify([feed_1, feed_2])
+        result, _, _ = logify([feed_1, feed_2])
         assert len(result) == 1
