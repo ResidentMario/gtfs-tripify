@@ -491,7 +491,7 @@ def logify(updates):
     """
     # trivial case
     if updates == []:
-        return dict()
+        return dict(), dict(), None
 
     def _parse_message_list_into_action_log(message_collection, timestamp):
         actions_list = []
@@ -503,11 +503,50 @@ def logify(updates):
         return pd.concat(actions_list)
 
     # Accept either raw Protobuf updates or already-parsed dict updates.
-    if not isinstance(updates[0], dict):
-        updates = filter(None, [parse_feed(update) for update in updates])
-        updates = [dictify(update) for update in updates]
-        updates = [drop_invalid_messages(update) for update in updates]
-        updates = drop_duplicate_messages(updates)
+    already_parsed = isinstance(updates[0], dict)
+    parse_errors = None if already_parsed else []
+    if not already_parsed:
+        # step 1: bytes -> protobufs
+        protobufs = []
+        for update in updates:
+            try:
+                protobuf = parse_feed(update)
+                if protobufs is None:  # an unnsafe Protobuf parse
+                    parse_errors.append({
+                        'type': 'parsing_into_protobuf_raised_runtime_warning'
+                    })
+                else:
+                    protobufs.append(protobuf)
+            except (SystemExit, KeyboardInterrupt) as e:
+                raise e
+            except:  # an erroneous Protobuf parse
+                parse_errors.append({
+                    'type': 'parsing_into_protobuf_raised_exception'
+                })
+        del updates
+
+        # step 2: protobufs -> dicts
+        # Since the Protobuf parser should raise for major GTFS-RT schema violations, this method
+        # can only raise in the case of a logic fault in the code, not in the data, so we do not
+        # intercept errors here.
+        update_dicts = [dictify(protobuf) for protobuf in protobufs]
+        del protobufs
+
+        # step 3: dicts -> cleaned-up dicts
+        clean_updates = []
+        for update in update_dicts:
+            update, drop_invalid_parse_errors = drop_invalid_messages(update)
+            parse_errors += drop_invalid_parse_errors
+            clean_updates.append(update)
+        del update_dicts
+
+        # step 4: dict feed -> deduplicated dict feed
+        clean_deduped_updates, drop_duplicate_messages_parse_errors =\
+            drop_duplicate_messages(update)
+
+        parse_errors += drop_duplicate_messages_parse_errors
+        del clean_updates
+        updates = clean_deduped_updates
 
     last_timestamp = updates[-1]['header']['timestamp']
 
@@ -543,4 +582,4 @@ def logify(updates):
         logbook[unique_trip_id] = trip_log
         timestamps[unique_trip_id] = trip_timestamps
 
-    return logbook, timestamps
+    return logbook, timestamps, parse_errors

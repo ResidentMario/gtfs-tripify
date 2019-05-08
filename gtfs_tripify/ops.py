@@ -50,8 +50,7 @@ def cut_cancellations(logbook):
 
     for unique_trip_id in logbook:
         updated_log = cut_cancellations_log(logbook[unique_trip_id])
-        if len(updated_log) > 0:
-            logbook[unique_trip_id] = updated_log
+        logbook[unique_trip_id] = updated_log
 
     return logbook
 
@@ -87,6 +86,8 @@ def drop_invalid_messages(update):
     they violate the GTFS-RT spec, are still valid in the Protobuf spec. These are operator errors
     made by the feed publisher. A warning is raised and the non-conformant messages are dropped.
     """
+    parse_errors = []
+
     # Capture and throw away vehicle updates that do not also have trip updates.
     vehicle_update_ids = {
         m['vehicle']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'vehicle_update'
@@ -107,6 +108,14 @@ def drop_invalid_messages(update):
                 m['vehicle']['trip']['trip_id'] not in trip_update_only_ids
             )
         ]
+        for trip_update_only_id in trip_update_only_ids:
+            parse_errors.append({
+                'type': 'trip_id_with_trip_update_but_no_vehicle_update',
+                'details': {
+                    'trip_id': trip_update_only_id,
+                    'update_timestamp': update['header']['timestamp']
+                }
+            })
 
     # Capture and throw away messages which have a null (empty string, '') trip id.
     nonalert_ids = vehicle_update_ids | trip_update_ids
@@ -116,17 +125,30 @@ def drop_invalid_messages(update):
             f"have a null trip id. These invalid messages were removed from the update during "
             f"pre-processing."
         )
-        update['entity'] = [m for m in update['entity'] if (
-            (m['type'] == 'vehicle_update' and m['vehicle']['trip']['trip_id'] != "") or
-            (m['type'] == 'trip_update') and m['trip_update']['trip']['trip_id'] != "")
-        ]
 
-    return update
+        fixed_update = {'header': update['header'], 'entity': []}
+        for m in update['entity']:
+            if ((m['type'] == 'vehicle_update' and m['vehicle']['trip']['trip_id'] != "") or
+                (m['type'] == 'trip_update' and m['trip_update']['trip']['trip_id'] != "")):
+                fixed_update['entity'].append(m)
+            else:
+                parse_errors.append({
+                    'type': 'update_message_with_null_trip_id',
+                    'details': {
+                        'update_timestamp': update['header']['timestamp'],
+                        'message_body': m
+                    }
+                })
+        update = fixed_update
+
+    return update, parse_errors
 
 
 def drop_duplicate_messages(updates):
+    parse_errors = []
+
     if updates == []:
-        return []
+        return [], []
 
     ts_prior = updates[0]['header']['timestamp']
     out = [updates[0]]
@@ -139,11 +161,19 @@ def drop_duplicate_messages(updates):
                 f"{updates[idx]['header']['timestamp']}. The duplicate updates were removed "
                 f"during pre-processing."
             )
+            parse_errors.append({
+                'type': 'feed_updates_with_duplicate_timestamps',
+                'details': {
+                    'update_timestamp': updates[idx]['header']['timestamp'],
+                    'update_index': idx,
+                    'message_body': updates[idx]
+                }
+            })
         else:
             out.append(updates[idx])
         ts_prior = ts_curr
 
-    return out
+    return out, parse_errors
 
 
 def partition_on_incomplete(logbook, timestamps):
@@ -392,15 +422,16 @@ def parse_feed(bytes):
         # taken into account upstream. For further information see the following thread:
         # https://groups.google.com/forum/#!msg/mtadeveloperresources/9Fb4SLkxBmE/BlmaHWbfw6kJ
         except RuntimeWarning:
+            warnings.warn(
+                f"The Protobuf parser raised a RunTimeWarning while parsing an update, indicating "
+                f"possible corruption and/or loss of data. This update cannot be safely used "
+                f"upstream and has been dropped."
+            )
             return None
 
-        # Raise for system and user interrupt signals.
-        except (KeyboardInterrupt, SystemExit):
-            raise
-
-        # Return the same None flag value for all other (Protobuf-thrown) errors.
+        # Raise for all other errors.
         except:
-            return None
+            raise
 
 
 def to_gtfs(logbook, filename, tz=None, output=False):

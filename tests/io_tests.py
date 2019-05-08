@@ -27,7 +27,7 @@ class TestLogbooksToGTFS(unittest.TestCase):
 
         self.log_0 = dictify(gtfs_0)
         self.log_1 = dictify(gtfs_1)
-        self.logbook, _ = logify([self.log_0, self.log_1])
+        self.logbook, _, _ = logify([self.log_0, self.log_1])
 
         for unique_trip_id in self.logbook:
             self.logbook[unique_trip_id].maximum_time = 1556588500
@@ -54,7 +54,7 @@ class TestLogbooksToCSV(unittest.TestCase):
 
         self.log_0 = dictify(gtfs_0)
         self.log_1 = dictify(gtfs_1)
-        self.logbook, _ = logify([self.log_0, self.log_1])
+        self.logbook, _, _ = logify([self.log_0, self.log_1])
 
     def test_to_csv_roundtrip(self):
         to_csv(self.logbook, 'temp.csv')

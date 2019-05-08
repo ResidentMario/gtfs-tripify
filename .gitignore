@@ -4,3 +4,5 @@ __pycache__
 gtfs_tripify.egg-info/
 notebooks/
 .vscode
+dist/
+build/
