@@ -33,7 +33,7 @@ This is where `gtfs_tripify` comes in:
 
 ```python
 import gtfs_tripify as gt
-logbook, timestamps = gt.logify(stream)
+logbook, timestamps, parse_errors = gt.logify(stream)
 ```
 
 Now we have a `logbook`. If we inspect it we see that it is a `dict` with the following format:
