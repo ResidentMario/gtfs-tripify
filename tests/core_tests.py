@@ -39,29 +39,29 @@ class TestDictify(unittest.TestCase):
         assert set(feed) == {'entity', 'header'}
         assert feed['header'].keys() == {'timestamp', 'gtfs_realtime_version'}
         assert isinstance(feed['header']['timestamp'], int)
-        assert(dict(collections.Counter([message['type'] for message in feed['entity']]))) == {'alert': 1,
-                                                                                               'trip_update': 94,
-                                                                                               'vehicle_update': 68}
+        assert(dict(collections.Counter([message['type'] for message in feed['entity']]))) ==\
+            {'alert': 1, 'trip_update': 94, 'vehicle_update': 68}
         assert len(feed['entity']) == 1 + 94 + 68
 
         assert feed['entity'][-1]['type'] == 'alert'
-        assert set(feed['entity'][-1]['alert']['informed_entity'][0].keys()) == {'route_id', 'trip_id'}
+        assert set(feed['entity'][-1]['alert']['informed_entity'][0].keys()) ==\
+            {'route_id', 'trip_id'}
 
         assert feed['entity'][-2]['type'] == 'trip_update'
         assert len(feed['entity'][-2]['trip_update']['stop_time_update']) == 2
-        assert set(feed['entity'][-2]['trip_update']['stop_time_update'][0].keys()) == {'arrival', 'departure',
-                                                                                        'stop_id'}
+        assert set(feed['entity'][-2]['trip_update']['stop_time_update'][0].keys()) ==\
+            {'arrival', 'departure', 'stop_id'}
 
         assert feed['entity'][5]['type'] == 'vehicle_update'
-        assert set(feed['entity'][5]['vehicle'].keys()) == {'trip', 'stop_id', 'timestamp', 'current_stop_sequence',
-                                                            'current_status'}
+        assert set(feed['entity'][5]['vehicle'].keys()) ==\
+            {'trip', 'stop_id', 'timestamp', 'current_stop_sequence', 'current_status'}
 
 
 class TestActionify(unittest.TestCase):
     def test_case_1(self):
         """
-        The train is STOPPED_AT a station somewhere along the route. The train is not expected to skip any of the
-        stops along the route.
+        The train is STOPPED_AT a station somewhere along the route. The train is not expected 
+        to skip any of the stops along the route.
         """
         trip_message = {
             'id': '000001',
@@ -95,13 +95,15 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
-                                       'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 
+            'EXPECTED_TO_ARRIVE_AT'
+        ]
 
     def test_case_2(self):
         """
-        The train is currently IN_TRANSIT_TO a station somewhere along the route. The train is not expected to skip
-        any of the stops along the route.
+        The train is currently IN_TRANSIT_TO a station somewhere along the route. The train is 
+        not expected to skip any of the stops along the route.
         """
         trip_message = {
             'id': '000001',
@@ -135,13 +137,15 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
-                                       'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
+            'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT'
+        ]
 
     def test_case_3(self):
         """
-        The train is currently INCOMING_AT a station somewhere along the route. This case is treated the same was as
-        the case above.
+        The train is currently INCOMING_AT a station somewhere along the route. This case is 
+        treated the same was as the case above.
         """
         trip_message = {
             'id': '000001',
@@ -175,16 +179,18 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
-                                       'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT',
+            'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT'
+        ]
 
     def test_case_4(self):
         """
         The train is queued. The train is not expected to skip any of the stops along the route.
 
         Every station except for the first and last has an EXPECTED_TO_ARRIVE_AT and
-        EXPECTED_TO_DEPART_AT entry. The last only has an EXPECTED_TO_ARRIVE_AT entry. The first only has an
-        EXPECTED_TO_DEPART_AT entry.
+        EXPECTED_TO_DEPART_AT entry. The last only has an EXPECTED_TO_ARRIVE_AT entry. 
+        The first only has an EXPECTED_TO_DEPART_AT entry.
         """
         trip_message = {
             'id': '000001',
@@ -203,8 +209,10 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, None, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
-                                       'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
+            'EXPECTED_TO_ARRIVE_AT'
+        ]
 
     def test_case_5(self):
         """
@@ -316,13 +324,15 @@ class TestActionify(unittest.TestCase):
 
     def test_case_8(self):
         """
-        The train is somewhere along its trip, and follows all of the same rules as the similar earlier test cases
-        thereof. However, it is also expected to skip one or more stops along its route.
+        The train is somewhere along its trip, and follows all of the same rules as the similar
+        earlier test cases thereof. However, it is also expected to skip one or more stops 
+        along its route.
 
-        There are actually two such cases. In the first case, we have an intermediate station with only a departure.
-        In the second, an intermediate station with only an arrival.
+        There are actually two such cases. In the first case, we have an intermediate station
+        with only a departure. In the second, an intermediate station with only an arrival.
 
-        One hopes that there isn't some special meaning attached to the difference between the two.
+        One hopes that there isn't some special meaning attached to the difference between the
+        two.
         """
         # First subcase.
         trip_message = {
@@ -357,8 +367,10 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
-                                       'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
+            'EXPECTED_TO_ARRIVE_AT'
+        ]
 
         # Second subcase.
         trip_message = {
@@ -393,8 +405,10 @@ class TestActionify(unittest.TestCase):
         timestamp = 1463025417
 
         log = actionify(trip_message, vehicle_message, timestamp)
-        assert list(log['action']) == ['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
-                                       'EXPECTED_TO_ARRIVE_AT']
+        assert list(log['action']) == [
+            'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT', 'EXPECTED_TO_SKIP',
+            'EXPECTED_TO_ARRIVE_AT'
+        ]
 
     def test_case_9(self):
         """
@@ -472,8 +486,8 @@ class TestActionify(unittest.TestCase):
 class TestCorrectFeed(unittest.TestCase):
     def test_vehicle_update_only(self):
         """
-        Assert that we raise a warning and remove the entry with `correct` when a trip only have a vehicle warning
-        in the feed.
+        Assert that we raise a warning and remove the entry with `correct` when a trip 
+        only have a vehicle warning in the feed.
         """
         trip_message = {
             'id': '000001',
@@ -518,7 +532,8 @@ class TestCorrectFeed(unittest.TestCase):
 
     def test_empty_trip_id(self):
         """
-        Assert that we raise a warning and remove the entry with `correct` when a feed entity has a null trip_id.
+        Assert that we raise a warning and remove the entry with `correct` when a feed entity 
+        has a null trip_id.
         """
         vehicle_message = {
             'id': '',
@@ -593,16 +608,21 @@ class TripLogUnaryTests(unittest.TestCase):
 
         assert len(result) == 1
         assert result.iloc[0].action == 'STOPPED_AT'
-        assert all([str(result.iloc[0]['maximum_time']) == 'nan', str(result.iloc[0]['minimum_time']) == 'nan',
-                    int(result.iloc[0]['latest_information_time']) == 0])
+        assert all([
+            str(result.iloc[0]['maximum_time']) == 'nan',
+            str(result.iloc[0]['minimum_time']) == 'nan',
+            int(result.iloc[0]['latest_information_time']) == 0]
+        )
 
     def test_unary_en_route(self):
         """
-        An action log with just an arrival and departure ought to report as just an arrival (note: this is the same
-        technically broken case tested by the eight test in action log testing; for more on when this arises,
-        check the docstring there).
+        An action log with just an arrival and departure ought to report as just an arrival 
+        (note: this is the same technically broken case tested by the eight test in action log 
+        testing; for more on when this arises, check the docstring there).
         """
-        actions = [create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT'])]
+        actions = [
+            create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT'])
+        ]
         result, _ = tripify(actions)
 
         assert len(result) == 1
@@ -626,15 +646,20 @@ class TripLogUnaryTests(unittest.TestCase):
 
     def test_unary_arriving_skip(self):
         """
-        An action log with a stop to be skipped ought to report an arrival at that stop in the resultant trip log.
-        This is because we leave the job of detecting a skip to the combination process.
+        An action log with a stop to be skipped ought to report an arrival at that stop in the 
+        resultant trip log. This is because we leave the job of detecting a skip to the 
+        combination process.
 
-        This is an "arriving skip" because a skip will occur on a station that has either a departure or arrival
-        defined, but not both.
+        This is an "arriving skip" because a skip will occur on a station that has either a 
+        departure or arrival defined, but not both.
         """
         actions = [
-            create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
-                                            'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
+            create_mock_action_log(
+                actions=[
+                    'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART',
+                    'EXPECTED_TO_ARRIVE_AT
+                ],
+                stops=['999X', '998X', '998X', '997X'])
         ]
         result, _ = tripify(actions)
 
@@ -645,15 +670,21 @@ class TripLogUnaryTests(unittest.TestCase):
 
     def test_unary_departing_skip(self):
         """
-        An action log with a stop to be skipped ought to report an arrival at that stop in the resultant trip log.
-        This is because we leave the job of detecting a skip to the combination process.
+        An action log with a stop to be skipped ought to report an arrival at that stop in the 
+        resultant trip log. This is because we leave the job of detecting a skip to the 
+        combination process.
 
-        This is an "arriving skip" because a skip will occur on a station that has either a departure or arrival
-        defined, but not both.
+        This is an "arriving skip" because a skip will occur on a station that has either a 
+        departure or arrival defined, but not both.
         """
         actions = [
-            create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART', 'EXPECTED_TO_DEPART',
-                                            'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X', '998X', '997X'])
+            create_mock_action_log(
+                actions=[
+                    'EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART', 'EXPECTED_TO_DEPART',
+                    'EXPECTED_TO_ARRIVE_AT'
+                ], 
+                stops=['999X', '998X', '998X', '997X']
+            )
         ]
         result, _ = tripify(actions)
 
@@ -682,7 +713,8 @@ class TripLogUnaryTests(unittest.TestCase):
 
     def test_unary_ordinary_stopped_trip(self):
         """
-        A slightly longer test. Like `test_unary_stopped`, but with an additional arrival after the present one.
+        A slightly longer test. Like `test_unary_stopped`, but with an additional arrival 
+        after the present one.
         """
         actions = [
             create_mock_action_log(actions=['STOPPED_AT', 'EXPECTED_TO_ARRIVE_AT'],
@@ -700,16 +732,18 @@ class TripLogBinaryTests(unittest.TestCase):
     """
     Tests for more complicated cases necessitating both action logs.
 
-    These tests do not invoke station list changes between action logs, e.g. they do not address reroutes.
+    These tests do not invoke station list changes between action logs, e.g. they do not 
+    address reroutes.
     """
 
     def test_binary_en_route(self):
         """
-        In the first observation, the train is EN_ROUTE to a station. In the next observation, it is still EN_ROUTE
-        to that station.
+        In the first observation, the train is EN_ROUTE to a station. In the next observation, 
+        it is still EN_ROUTE to that station.
 
-        Our output should be a trip log with a single row. Critically, the minimum_time recorded should correspond
-        with the time at which the second observation was made---1, in this test case.
+        Our output should be a trip log with a single row. Critically, the minimum_time 
+        recorded should correspond with the time at which the second observation was made---1, 
+        in this test case.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT'],
                                       stops=['999X', '999X'])
@@ -726,10 +760,11 @@ class TripLogBinaryTests(unittest.TestCase):
 
     def test_binary_en_route_stop(self):
         """
-        In the first observation, the train is EN_ROUTE to a station. In the next observation, it STOPPED_AT that
-        station.
+        In the first observation, the train is EN_ROUTE to a station. In the next observation, 
+        it STOPPED_AT that station.
 
-        Our output should be a trip log with a single row, recording the time at which the stop was made.
+        Our output should be a trip log with a single row, recording the time at which the stop 
+        was made.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'STOPPED_AT'],
                                       stops=['999X', '999X'])
@@ -746,11 +781,11 @@ class TripLogBinaryTests(unittest.TestCase):
 
     def test_binary_stop_or_skip_en_route(self):
         """
-        In the first observation, the train is EN_ROUTE to a station. In the next observation, it is EN_ROUTE to
-        a different station, one further along in the record.
+        In the first observation, the train is EN_ROUTE to a station. In the next observation, 
+        it is EN_ROUTE to a different station, one further along in the record.
 
-        Our output should be a trip log with two rows, one STOPPED_OR_SKIPPED at the first station,
-        and one EXPECTED_TO_ARRIVE_AT in another.
+        Our output should be a trip log with two rows, one STOPPED_OR_SKIPPED at the first 
+        station, and one EXPECTED_TO_ARRIVE_AT in another.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_DEPART_AT',
                                                'EXPECTED_TO_ARRIVE_AT',
@@ -769,11 +804,12 @@ class TripLogBinaryTests(unittest.TestCase):
 
     def test_binary_skip_en_route(self):
         """
-        In the first observation, the train is EN_ROUTE to a station which it is going to skip. In the second
-        observation the train is en route to another station further down the line.
+        In the first observation, the train is EN_ROUTE to a station which it is going to skip. 
+        In the second observation the train is en route to another station further down the line.
 
-        Our output should be a trip log with two rows. The first entry should be a STOPPED_OR_SKIPPED at the first
-        station, and then the second should be an EN_ROUTE_TO at the second station.
+        Our output should be a trip log with two rows. The first entry should be a 
+        STOPPED_OR_SKIPPED at the first station, and then the second should be an EN_ROUTE_TO 
+        at the second station.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT',
                                                'EXPECTED_TO_ARRIVE_AT'],
@@ -791,11 +827,12 @@ class TripLogBinaryTests(unittest.TestCase):
 
     def test_binary_skip_stop(self):
         """
-        In the first observation, the train is EN_ROUTE to a station which it is going to skip. In the second
-        observation the train is stopped at another station further down the line.
+        In the first observation, the train is EN_ROUTE to a station which it is going to skip. 
+        In the second observation the train is stopped at another station further down the line.
 
-        Our output should be a trip log with two rows. The first entry should be a STOPPED_OR_SKIPPED at the first
-        station, and then the second should be a STOPPED_AT at the second station.
+        Our output should be a trip log with two rows. The first entry should be a 
+        STOPPED_OR_SKIPPED at the first station, and then the second should be a STOPPED_AT at 
+        the second station.
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT',
                                                'STOPPED_AT'],
@@ -818,8 +855,8 @@ class TripLogReroutingTests(unittest.TestCase):
     """
     def test_en_route_reroute(self):
         """
-        Behavior when en route, and rerouted to another en route, is that the earlier station(s) ought to be marked
-        "STOPPED_OR_SKIPPED".
+        Behavior when en route, and rerouted to another en route, is that the earlier station(s) 
+        ought to be marked "STOPPED_OR_SKIPPED".
         """
         base = create_mock_action_log(actions=['EXPECTED_TO_ARRIVE_AT', 'EXPECTED_TO_ARRIVE_AT'],
                                       stops=['999X', '998X'])
@@ -836,10 +873,11 @@ class TripLogFinalizationTests(unittest.TestCase):
     """
     Tests for finalization.
 
-    Within the GTFS-Realtime log, a signal that a train trip is complete only comes in the form of that trip's
-    messages no longer appearing in the queue in the next update. The most recently recorded message may be in any
-    conceivable state prior to this occurring. Finalization is the procedure "capping off" any still to-be-arrived-at
-    stations. Since this involves contextual knowledge about records appearing and not appearing in the data stream,
+    Within the GTFS-Realtime log, a signal that a train trip is complete only comes in the 
+    form of that trip's messages no longer appearing in the queue in the next update. The 
+    most recently recorded message may be in any conceivable state prior to this occurring. 
+    Finalization is the procedure "capping off" any still to-be-arrived-at stations. Since this 
+    involves contextual knowledge about records appearing and not appearing in the data stream,
     this procedure is provided as a separate method.
 
     These tests ascertain that said method, `_finish_trip`, works as advertised.
@@ -868,7 +906,10 @@ class TripLogFinalizationTests(unittest.TestCase):
         """
         Make sure that finalization works across columns as well.
         """
-        base = create_mock_action_log(actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT'], stops=['999X', '998X'])
+        base = create_mock_action_log(
+            actions=['EXPECTED_TO_SKIP', 'EXPECTED_TO_ARRIVE_AT'], 
+            stops=['999X', '998X']
+        )
         first = base.head(1)
         second = base.tail(1)
         result, _ = tripify([first, second], finished=True, finish_information_time=42)
@@ -947,11 +988,15 @@ class LogbookJoinTests(unittest.TestCase):
         assert result.keys() == logbook.keys()
 
         # both empty
-        result, _ = join_logbooks(empty_logbook, empty_timestamps, empty_logbook, empty_timestamps)
+        result, _ = join_logbooks(
+            empty_logbook, empty_timestamps, empty_logbook, empty_timestamps
+        )
         assert len(result) == 0
 
     def test_only_complete_trips(self):
-        """The simplest non-trivial case: trips on either side are complete and just get merged in."""
+        """
+        The simplest non-trivial case: trips on either side are complete and just get merged in.
+        """
         actions_1 = create_mock_action_log(
             actions=['STOPPED_AT'], information_time=1, trip_id='TRIP_1'
         )
@@ -966,7 +1011,8 @@ class LogbookJoinTests(unittest.TestCase):
         result, result_timestamps =\
             join_logbooks(left_logbook, left_timestamps, right_logbook, right_timestamps)
         assert list(result.keys()) == ['uuid1', 'uuid2']
-        assert all(result['uuid1'].trip_id == 'TRIP_1') and all(result['uuid2'].trip_id == 'TRIP_2')
+        assert (all(result['uuid1'].trip_id == 'TRIP_1') and 
+                all(result['uuid2'].trip_id == 'TRIP_2'))
         assert len(result_timestamps.keys()) == 2
 
     def test_incomplete_completable_trips(self):
