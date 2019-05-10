@@ -17,7 +17,7 @@ from gtfs_tripify.ops import join_logbooks
 # some of these tests use ./fixtures/gtfs-* fixtures.
 # you can recreate these fixtures yourself from archival data by running the following:
 # import gtfs_tripify as gt; import datetime
-#  messages, dates =\
+# messages, dates =\
 #      gt.utils.load_mytransit_archived_feeds(timestamp=datetime.datetime(2016, 5, 12, 4, 0))
 # addtl_fixtures = [(message, name) for (message, name) in zip(messages, names) if (
 #   'gtfs-20160512T04' in name or 'gtfs-20160512T0500Z' in name
