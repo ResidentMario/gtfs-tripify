@@ -20,12 +20,12 @@ class TestCutCancellations(unittest.TestCase):
 
     def test_no_op(self):
         """
-        The heuristic should do nothing if the log is empty.
+        The heuristic remove already-empty entries.
         """
         log = pd.DataFrame(columns=self.log_columns)
         logbook = {'uuid': log}
         result = cut_cancellations(logbook)
-        assert len(result['uuid']) == 0
+        assert len(result) == 0
 
     def test_zero_confirmed(self):
         """
@@ -37,7 +37,7 @@ class TestCutCancellations(unittest.TestCase):
         )
         logbook = {'uuid': log}
         result = cut_cancellations(logbook)
-        assert len(result['uuid']) == 0
+        assert len(result) == 0
 
     def test_zero_tailing_unconfirmed(self):
         """
@@ -126,7 +126,7 @@ class TestCutCancellations(unittest.TestCase):
                            ])
         logbook = {'uuid': log}
         result = cut_cancellations(logbook)
-        assert len(result['uuid']) == 0
+        assert len(result) == 0
 
 
 class TestDiscardPartialLogs(unittest.TestCase):

@@ -48,10 +48,12 @@ def cut_cancellations(logbook):
             else:
                 return log
 
-    for unique_trip_id in logbook:
+    for unique_trip_id in list(logbook.keys()):
         updated_log = cut_cancellations_log(logbook[unique_trip_id])
-        if len(updated_log) > 0:  # remove now-empty trips
+        if len(updated_log) > 0:
             logbook[unique_trip_id] = updated_log
+        else:
+            del logbook[unique_trip_id]  # remove now-empty trips
 
     return logbook
 
