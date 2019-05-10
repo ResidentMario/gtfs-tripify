@@ -429,6 +429,7 @@ def collate(updates, include_alerts=False):
     st_map = dict()
     out = dict()
 
+    # TODO: investigate what happens if there are >2 tripwise segments; probably need to loop
     # need to do this in two passes, first building a struct of all potential matches
     for uid in interim:
         route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
@@ -446,6 +447,9 @@ def collate(updates, include_alerts=False):
     timestamp_sequence = [u['header']['timestamp'] for u in updates]
     already_merged = set()
     for uid in interim:
+        if uid in already_merged:
+            continue  # the trip has already been matched so we are done (but see to-do)
+
         route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
         last_timestamp = interim[uid][-1]['timestamp']
 
@@ -456,7 +460,7 @@ def collate(updates, include_alerts=False):
         end_timestamp = timestamp_sequence[
             timestamp_sequence.index(last_timestamp) + 1
         ]
-        if end_timestamp not in st_map[route_id] and uid not in already_merged:
+        if end_timestamp not in st_map[route_id]:
             continue  # no other trips on this route started at this time so we are done
 
         possible_matches = set(st_map[route_id][end_timestamp]).difference(already_merged)
@@ -468,6 +472,7 @@ def collate(updates, include_alerts=False):
 
             if (candidate_uid != uid and
                 candidate_initial_stop == current_first_remaining_stop):
+                # the trips match; stitch them together
                 out[uid] = interim[uid] + interim[candidate_uid]
                 already_merged.update({candidate_uid})
                 break
@@ -511,7 +516,7 @@ def logify(updates):
         for update in updates:
             try:
                 protobuf = parse_feed(update)
-                if protobufs is None:  # an unnsafe Protobuf parse
+                if protobuf is None:  # an unsafe Protobuf parse
                     parse_errors.append({
                         'type': 'parsing_into_protobuf_raised_runtime_warning'
                     })
@@ -542,7 +547,7 @@ def logify(updates):
 
         # step 4: dict feed -> deduplicated dict feed
         clean_deduped_updates, drop_duplicate_messages_parse_errors =\
-            drop_duplicate_messages(update)
+            drop_duplicate_messages(clean_updates)
 
         parse_errors += drop_duplicate_messages_parse_errors
         del clean_updates
@@ -551,6 +556,7 @@ def logify(updates):
     last_timestamp = updates[-1]['header']['timestamp']
 
     # collate generates `unique_trip_id` values for each trip and keys them to message collections
+    # TODO: it is probably necessary to cut cancellations before collation?
     message_collections = collate(updates)
 
     logbook = dict()

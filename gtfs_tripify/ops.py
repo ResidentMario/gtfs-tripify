@@ -50,7 +50,8 @@ def cut_cancellations(logbook):
 
     for unique_trip_id in logbook:
         updated_log = cut_cancellations_log(logbook[unique_trip_id])
-        logbook[unique_trip_id] = updated_log
+        if len(updated_log) > 0:  # remove now-empty trips
+            logbook[unique_trip_id] = updated_log
 
     return logbook
 
@@ -145,6 +146,8 @@ def drop_invalid_messages(update):
 
 
 def drop_duplicate_messages(updates):
+    # TODO: warn on non-sequential timestamps
+    # TODO: warn on non-sensical and/or empty timestamps
     parse_errors = []
 
     if updates == []:
