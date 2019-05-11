@@ -91,6 +91,8 @@ Values are:
 * `maximum_time`: The maximum time at which the train pulled out of the station. May be `NaN`. Also a Unix timestamp.
 * `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.
 
+It's important to note that each log in the logbook does not nessarily correspond with a single end-to-end trip. Because of the way GTFS-RT is designed, such trips may be broken up into two or more logs in the logbook.
+
 In addition to a logbook, `gt.logify` also returns two other pieces of information: `timestamps`, a map of unique trip ids to update timestamps (used for merging logbooks); and `parse_errors`, a list of non-fatal errors encountered during the logbook-building process. For more information on possible errors and how they are remediated see the section "Parse errors".
 
 ## Additional methods
@@ -140,7 +142,7 @@ combined_logbook, combined_logbook_timestamps = gt.ops.merge(
 )
 ```
 
-**Note**: the `trip_id` field in a GTFS-RT feed may be reassigned to a new train mid-trip and without warning. `gt.logify` can catch and correct this in many (but not all!) cases, `gt.ops.merge` cannot and, in the case that the reassignment happens to occur in the space in between two logbooks, will record two separate partial trips instead. So it's highly recommended to only merge large logbooks, to help avoid "trip fragmentation".
+Note that `gt.ops.merge` does not have the robust logic for infering and merging trips that `gt.logify` has, so it's highly recommended to only merge large logbooks to help avoid "trip fragmentation".
 
 Finally, you may save a logbook to disk. There are a couple of methods for doing so: `gt.ops.to_csv` (and its companion `gt.ops.from_csv`), which will write a logbook to disk as a CSV file, and `gt.ops.to_gtfs`, which will write a logbook to disk as a GTFS `stop.txt` record. You should only use `gt.ops.to_gfst` on complete logbooks (e.g., ones which you have run `gt.ops.cut_cancellations` and `gt.ops.discard_partial_logs` on), as the GTFS spec allows neither null values nor hypothetical stops in `stops.txt`, so the offending stop records will be ignored.
 
