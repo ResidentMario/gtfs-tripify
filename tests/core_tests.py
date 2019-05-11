@@ -11,7 +11,7 @@ import pytest
 
 import gtfs_tripify as gt
 from gtfs_tripify.tripify import dictify, actionify, logify, tripify, drop_invalid_messages
-from gtfs_tripify.ops import join_logbooks
+from gtfs_tripify.ops import join_logbooks, drop_nonsequential_messages
 
 
 # some of these tests use ./fixtures/gtfs-* fixtures.
@@ -618,6 +618,65 @@ class TestCorrectFeed(unittest.TestCase):
             feed, parse_errors = drop_invalid_messages(feed)
 
         assert len(feed['entity']) == 0
+        assert len(parse_errors) == 1
+
+
+class DropInvalidUpdateTimestampsTests(unittest.TestCase):
+    """
+    Tests for dropping feed updates with bad timestamps.
+    """
+    def test_drop_update_timestamps_empty(self):
+        stream = []
+        stream, parse_errors = drop_nonsequential_messages(stream)
+
+        assert len(stream) == 0
+        assert len(parse_errors) == 0
+
+    def test_update_sequence_going_backwards_in_time(self):
+        update_1 = {
+            'header': {'timestamp': 1},
+            'entity': []
+        }
+        update_2 = {
+            'header': {'timestamp': 0},
+            'entity': []
+        }
+        stream = [update_1, update_2]
+
+        with pytest.warns(UserWarning):
+            stream, parse_errors = drop_nonsequential_messages(stream)
+
+        assert len(stream) == 1
+        assert stream[0]['header']['timestamp'] == 1
+        assert len(parse_errors) == 1
+
+    def test_update_sequence_null_empty_string_timestamp(self):
+        update = {'header': {'timestamp': ''}}
+        stream = [update]
+
+        with pytest.warns(UserWarning):
+            stream, parse_errors = drop_nonsequential_messages(stream)
+
+        assert len(stream) == 0
+        assert len(parse_errors) == 1
+
+    def test_update_sequence_null_zero_timestamp(self):
+        update = {'header': {'timestamp': '0'}}
+        stream = [update]
+
+        with pytest.warns(UserWarning):
+            stream, parse_errors = drop_nonsequential_messages(stream)
+
+        assert len(stream) == 0
+        assert len(parse_errors) == 1
+
+        update = {'header': {'timestamp': 0}}
+        stream = [update]
+
+        with pytest.warns(UserWarning):
+            stream, parse_errors = drop_nonsequential_messages(stream)
+
+        assert len(stream) == 0
         assert len(parse_errors) == 1
 
 
