@@ -64,7 +64,6 @@ def discard_partial_logs(logbook):
     likely to be partial because we do not get to "see" every single message corresponding with 
     the trip, as some are outside our "viewing window".
     """
-    # TODO: verify this method still works as expected
     trim = logbook.copy()
 
     times = np.array(
@@ -90,64 +89,95 @@ def drop_invalid_messages(update):
     made by the feed publisher. A warning is raised and the non-conformant messages are dropped.
     """
     parse_errors = []
+    fixed_update = {'header': update['header'], 'entity': []}
+    trip_ids_to_drop = set()
+    trip_ids_seen = []
+    messages_to_drop_idxs = set()
+    trip_update_ids = set()
+    vehicle_update_ids = set()
 
-    # Capture and throw away vehicle updates that do not also have trip updates.
-    vehicle_update_ids = {
-        m['vehicle']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'vehicle_update'
-    }
-    trip_update_ids = {
-        m['trip_update']['trip']['trip_id'] for m in update['entity'] if m['type'] == 'trip_update'
-    }
-    trip_update_only_ids = vehicle_update_ids.difference(trip_update_ids)
+    # Capture and throw away messages which (1) null trip_id values or (2) empty stop sequences.
+    for idx, message in enumerate(update['entity']):
+        if message['type'] == 'vehicle_update':
+            message_type = 'vehicle_update'
+            message_trip_id = message['vehicle']['trip']['trip_id']
+            vehicle_update_ids.add(message_trip_id)
+        else:  # message['type'] == 'trip_update'
+            message_type = 'trip_update'
+            message_trip_id = message['trip_update']['trip']['trip_id']
+            number_of_stops_remaining = len(message['trip_update']['stop_time_update'])
+            trip_update_ids.add(message_trip_id)
 
-    if len(trip_update_only_ids) > 0:
-        warnings.warn(
-            f"The trips with IDs {trip_update_only_ids} are provided vehicle updates but not "
-            f"trip updates in the GTFS-R update for {update['header']['timestamp']}. "
-            f"These invalid trips were removed from the update during pre-processing."
-        )
-        update['entity'] = [m for m in update['entity'] if (
-                m['type'] != 'vehicle_update' or 
-                m['vehicle']['trip']['trip_id'] not in trip_update_only_ids
+        if message_trip_id == '':
+            messages_to_drop_idxs.add(idx)
+            warnings.warn(
+                f"The message at the {idx} position in the GTFS-RT update for "
+                f"{update['header']['timestamp']} has a null trip id. This invalid "
+                f"message was removed from the update during pre-processing."
             )
-        ]
-        for trip_update_only_id in trip_update_only_ids:
             parse_errors.append({
-                'type': 'trip_id_with_trip_update_but_no_vehicle_update',
+                'type': 'message_with_null_trip_id',
                 'details': {
-                    'trip_id': trip_update_only_id,
-                    'update_timestamp': update['header']['timestamp']
+                    'update_timestamp': update['header']['timestamp'],
+                    'message_index': idx,
+                    'message_body': message
                 }
             })
+        elif message_type == 'trip_update' and number_of_stops_remaining == 0:
+            messages_to_drop_idxs.add(idx)
+            warnings.warn(
+                f"The trip with the ID {message_trip_id} was provided a trip update with "
+                f"no stops in it in the GTFS-RT update for {update['header']['timestamp']}. "
+                f"The messages correspondong with this invalid trip were removed from the "
+                f"update during pre-processing."
+            )
+            trip_ids_to_drop.add(message_trip_id)
+            parse_errors.append({
+                'type': 'trip_has_trip_update_with_no_stops_remaining',
+                'details': {
+                    'update_timestamp': update['header']['timestamp'],
+                    'message_index': idx,
+                    'message_body': message
+                }
+            })
+            if message_trip_id in trip_ids_seen:
+                complimentary_message_to_drop_idx = trip_ids_seen.index(message_trip_id)
+                messages_to_drop_idxs.add(complimentary_message_to_drop_idx)
+        elif message_trip_id in trip_ids_to_drop:
+            messages_to_drop_idxs.add(idx)
 
-    # Capture and throw away messages which have a null (empty string, '') trip id.
-    nonalert_ids = vehicle_update_ids | trip_update_ids
-    if '' in nonalert_ids:
+        trip_ids_seen.append(message_trip_id)
+
+    # Capture and throw away vehicle updates that do not also have trip updates.
+    # Note that this can result in multiple validation errors against a single message.
+    trip_update_only_ids = trip_update_ids.difference(vehicle_update_ids)
+    for trip_update_only_id in trip_update_only_ids:
         warnings.warn(
-            f"Some of the messages in the GTFS-R update for {update['header']['timestamp']} "
-            f"have a null trip id. These invalid messages were removed from the update during "
-            f"pre-processing."
+            f"The trip with ID {trip_update_only_id} is provided a vehicle update but no "
+            f"trip update in the GTFS-R update for {update['header']['timestamp']}. "
+            f"This invalid trip was removed from the update during pre-processing."
         )
+        parse_errors.append({
+            'type': 'trip_id_with_trip_update_but_no_vehicle_update',
+            'details': {
+                'trip_id': trip_update_only_id,
+                'update_timestamp': update['header']['timestamp']
+            }
+        })
+        messages_to_drop_idxs.add(trip_update_only_id)
 
-        fixed_update = {'header': update['header'], 'entity': []}
-        for m in update['entity']:
-            if ((m['type'] == 'vehicle_update' and m['vehicle']['trip']['trip_id'] != "") or
-                (m['type'] == 'trip_update' and m['trip_update']['trip']['trip_id'] != "")):
-                fixed_update['entity'].append(m)
-            else:
-                parse_errors.append({
-                    'type': 'update_message_with_null_trip_id',
-                    'details': {
-                        'update_timestamp': update['header']['timestamp'],
-                        'message_body': m
-                    }
-                })
-        update = fixed_update
+    for idx, message in enumerate(update['entity']):
+        if idx not in messages_to_drop_idxs:
+            fixed_update['entity'].append(message)
 
-    return update, parse_errors
+    return fixed_update, parse_errors
 
 
 def drop_duplicate_messages(updates):
+    """
+    Given a list of feed updates, drops updates from the feed which appear more than once 
+    (have the same timestamp). This would occur when the feed returns stale data.
+    """
     # TODO: warn on non-sequential timestamps
     # TODO: warn on non-sensical and/or empty timestamps
     parse_errors = []
@@ -179,6 +209,16 @@ def drop_duplicate_messages(updates):
         ts_prior = ts_curr
 
     return out, parse_errors
+
+
+# TODO: implement, test, inject into logify logic
+def drop_nonsequential_messages(updates):
+    """
+    Given a list of feed updates, drop updates from the feed with timestamps that don't make
+    sense. E.g. a timestamp of 0, or empty string '', or a timestamp that is otherwise out of
+    sequence from its neighbors.
+    """
+    pass
 
 
 def partition_on_incomplete(logbook, timestamps):

@@ -523,7 +523,6 @@ class TestCorrectFeed(unittest.TestCase):
             'entity': [trip_message, vehicle_message]
         }
 
-        # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
             feed, parse_errors = drop_invalid_messages(feed)
 
@@ -532,8 +531,7 @@ class TestCorrectFeed(unittest.TestCase):
 
     def test_empty_trip_id(self):
         """
-        Assert that we raise a warning and remove the entry with `correct` when a feed entity 
-        has a null trip_id.
+        Assert that we raise a warning and remove the entry when a feed entity has a null trip_id.
         """
         vehicle_message = {
             'id': '',
@@ -546,7 +544,7 @@ class TestCorrectFeed(unittest.TestCase):
                 'trip': {
                     'route_id': '1',
                     'start_date': '20160511',
-                    'trip_id': '137100_1..N02X017'
+                    'trip_id': ''
                 }
             }
         }
@@ -556,7 +554,6 @@ class TestCorrectFeed(unittest.TestCase):
             'entity': [vehicle_message]
         }
 
-        # noinspection PyUnresolvedReferences
         with pytest.warns(UserWarning):
             feed, parse_errors = drop_invalid_messages(feed)
 
@@ -571,10 +568,52 @@ class TestCorrectFeed(unittest.TestCase):
                                         'stop_id': '',
                                         'current_status': 'IN_TRANSIT_TO',
                                         'timestamp': 0,
-                                        'trip': {'route_id': '',
+                                        'trip': {'route_id': '1',
                                                  'trip_id': '',
-                                                 'start_date': ''}}}]}
-        # noinspection PyUnresolvedReferences
+                                                 'start_date': '20160511'}}}]}
+        with pytest.warns(UserWarning):
+            feed, parse_errors = drop_invalid_messages(feed)
+
+        assert len(feed['entity']) == 0
+        assert len(parse_errors) == 1
+
+    def test_trip_message_with_no_stops(self):
+        """
+        Assert that we raise a warning and remove offending entries when a feed entity
+        has a trip update with no stops in it.
+        """
+        feed = {
+            'header': {'timestamp': 1},
+            'entity': [
+                {
+                    'id': '000022',
+                    'type': 'vehicle_update',
+                    'vehicle': {
+                        'current_stop_sequence': 0,
+                        'stop_id': '100N',
+                        'current_status': 'IN_TRANSIT_TO',
+                        'timestamp': 1,
+                        'trip': {
+                            'route_id': 'A',
+                            'trip_id': 'A_B_C',
+                            'start_date': '20160512'
+                        }
+                    }
+                },
+                {
+                    'id': '000023',
+                    'type': 'trip_update',
+                    'trip_update': {
+                        'trip': {
+                            'route_id': 'A',
+                            'trip_id': 'A_B_C',
+                            'start_date': '20160512'
+                        },
+                        'stop_time_update': []
+                    }
+                }
+            ]
+        }
         with pytest.warns(UserWarning):
             feed, parse_errors = drop_invalid_messages(feed)
 
