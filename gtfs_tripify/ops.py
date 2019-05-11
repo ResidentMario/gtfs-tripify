@@ -178,8 +178,6 @@ def drop_duplicate_messages(updates):
     Given a list of feed updates, drops updates from the feed which appear more than once 
     (have the same timestamp). This would occur when the feed returns stale data.
     """
-    # TODO: warn on non-sequential timestamps
-    # TODO: warn on non-sensical and/or empty timestamps
     parse_errors = []
 
     if updates == []:
@@ -192,7 +190,7 @@ def drop_duplicate_messages(updates):
         ts_curr = updates[idx]['header']['timestamp']
         if ts_curr == ts_prior:
             warnings.warn(
-                f"There are multiple messages in the GTFS-R update for timestamp "
+                f"There are multiple messages in the GTFS-RT update for timestamp "
                 f"{updates[idx]['header']['timestamp']}. The duplicate updates were removed "
                 f"during pre-processing."
             )
@@ -200,7 +198,7 @@ def drop_duplicate_messages(updates):
                 'type': 'feed_updates_with_duplicate_timestamps',
                 'details': {
                     'update_timestamp': updates[idx]['header']['timestamp'],
-                    'update_index': idx,
+                    'message_index': idx,
                     'message_body': updates[idx]
                 }
             })
@@ -211,14 +209,57 @@ def drop_duplicate_messages(updates):
     return out, parse_errors
 
 
-# TODO: implement, test, inject into logify logic
 def drop_nonsequential_messages(updates):
     """
     Given a list of feed updates, drop updates from the feed with timestamps that don't make
     sense. E.g. a timestamp of 0, or empty string '', or a timestamp that is otherwise out of
     sequence from its neighbors.
     """
-    pass
+    timestamps = [update['header']['timestamp'] for update in updates]
+    update_idxs_to_remove = set()
+    parse_errors = []
+
+    for ts_idx, ts in enumerate(timestamps):
+        if ts == 0 or ts == '0' or ts == '':
+            warnings.warn(
+                f"The GTFS-RT update at position {ts_idx} in the stream has an erronous "
+                f"timestamp value of \"{ts}\". This update has been removed from the stream "
+                f"during pre-processing."
+            )
+            parse_errors.append({
+                'type': 'feed_update_has_null_timestamp',
+                'details': {
+                    'update_timestamp': timestamps[ts_idx],
+                    'update_index': ts_idx
+                }
+            })
+            update_idxs_to_remove.add(ts_idx)
+        elif ts_idx > 0:
+            ts_prior = timestamps[ts_idx - 1]
+            if ts_prior > ts:
+                warnings.warn(
+                    f"The GTFS-RT update at position {ts_idx} in the stream is for timestamp "
+                    f"{ts}, but the GTFS-RT update at position {ts_idx - 1} is for timestamp "
+                    f"{ts_prior}. This is an error in the feed as it should be impossible to "
+                    f"go backwards. This update has been removed from the stream during "
+                    f"pre-processing."
+                )
+                parse_errors.append({
+                    'type': 'feed_update_goes_backwards_in_time',
+                    'details': {
+                        'update_index': ts_idx,
+                        'update_timestamp': timestamps[ts_idx],
+                        'prior_timestamp': timestamps[ts_idx - 1]
+                    }
+                })
+                update_idxs_to_remove.add(ts_idx)
+    
+    out = []
+    for update_idx, update in enumerate(updates):
+        if update_idx not in update_idxs_to_remove:
+            out.append(update)
+    
+    return out, parse_errors
 
 
 def partition_on_incomplete(logbook, timestamps):
@@ -578,5 +619,6 @@ def from_csv(filename):
 
 __all__ = [
     'cut_cancellations', 'discard_partial_logs', 'drop_invalid_messages', 
-    'drop_duplicate_messages', 'partition_on_incomplete', 'merge_logbooks', 'parse_feed'
+    'drop_duplicate_messages', 'drop_nonsequential_messages', 'partition_on_incomplete', 
+    'merge_logbooks', 'parse_feed'
 ]

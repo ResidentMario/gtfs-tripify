@@ -11,7 +11,7 @@ Note that logic for doing so is highly involved, and this library is still under
 Begin by running the following to install this package on your local machine:
 
 ```sh
-pip install git+git://github.com/ResidentMario/gtfs-tripify.git@master
+pip install gtfs-tripify
 ```
 
 First we need to prepare our GTFS-Realtime feeds of interest. GTFS-Realtime is a highly compressed binary format encoded using a Google data encoding known as Protobuf.
@@ -91,6 +91,8 @@ Values are:
 * `maximum_time`: The maximum time at which the train pulled out of the station. May be `NaN`. Also a Unix timestamp.
 * `latest_information_time`: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.
 
+In addition to a logbook, `gt.logify` also returns two other pieces of information: `timestamps`, a map of unique trip ids to update timestamps (used for merging logbooks); and `parse_errors`, a list of non-fatal errors encountered during the logbook-building process. For more information on possible errors and how they are remediated see the section "Parse errors".
+
 ## Additional methods
 
 The `ops` submodue contains a variety of operations useful for working with logbooks.
@@ -141,6 +143,29 @@ combined_logbook, combined_logbook_timestamps = gt.ops.merge(
 **Note**: the `trip_id` field in a GTFS-RT feed may be reassigned to a new train mid-trip and without warning. `gt.logify` can catch and correct this in many (but not all!) cases, `gt.ops.merge` cannot and, in the case that the reassignment happens to occur in the space in between two logbooks, will record two separate partial trips instead. So it's highly recommended to only merge large logbooks, to help avoid "trip fragmentation".
 
 Finally, you may save a logbook to disk. There are a couple of methods for doing so: `gt.ops.to_csv` (and its companion `gt.ops.from_csv`), which will write a logbook to disk as a CSV file, and `gt.ops.to_gtfs`, which will write a logbook to disk as a GTFS `stop.txt` record. You should only use `gt.ops.to_gfst` on complete logbooks (e.g., ones which you have run `gt.ops.cut_cancellations` and `gt.ops.discard_partial_logs` on), as the GTFS spec allows neither null values nor hypothetical stops in `stops.txt`, so the offending stop records will be ignored.
+
+## Parse errors
+
+The stream of updates you pass to `gt.logify` may contain any of a large number of non-fatal errors and data inconsistencies, a list of which is returned as part of the method's output. This section documents what they are and how they are handled.
+
+First, some terminology:
+
+* **update** &mdash; A single parsed GTFS-RT update.
+* **message** &mdash; An individual entity in an update. There are two kinds: trip update messages, which give schedule information, and vehicle update messages, which give train location information. Complimentary messages are linked by `trip_id`.
+* **stream** &mdash; A sequential list of updates over time.
+
+Now for the actual errors:
+
+* `parsing_into_protobuf_raised_exception` &mdash; Occurs when the bytes of a feed update cannot successfully be parsed into a Protobuf. This indicates data corruption. These messages are removed from the field. This will degrade the accuracy of the logbook estimates.
+* `parsing_into_protobuf_raised_runtime_warning` &mdash; Occurs when the bytes of a feed update can successfully be parsed into a Protobuf, but doing so raises a `RuntimeWarning`. This likely indicates data loss, and since `gtfs_tripify` is sensitive to such data loss these messages are removed from the feed. This will degrade the accuracy of the logbook estimates.
+* `message_with_null_trip_id` &mdash; Occurs when a message in an update in the feed has its `trip_id` set to empty string (`''`). Empty strings are not valid trip identifiers and indicate an error by the feed provider. The offending messages are dropped.
+* `trip_has_trip_update_with_no_stops_remaining` &mdash; Occurs when there is a trip update (and optionally a complimentary vehicle update) which has no stops remaining. This is an error by the feed provider, as such trips are supposed to be removed from the feed upon arriving at their final stations. The messages corresponding with this `trip_id` are dropped.
+* `trip_id_with_trip_update_but_no_vehicle_update` &mdash; Occurs when there is a trip update with no complimentary vehicle update. This is an error by the feed provider: there is schedule information about a trip but no location information, which makes parsing that schedule impossible. The offending message is dropped.
+* `feed_updates_with_duplicate_timestamps` &mdash; Occurs when there are multiple updates in the feed with the same timestamp. This means that either a double read occurred or more likely the feed stopped updating and returned stale data. The offending updates are removed from the field.
+* `feed_update_has_null_timestamp` &mdash; Occurs when there is an update has its timestamp set to empty string (`''`) or `0`. These values are null sentinels and indicate an error by the feed provider. The offending update is dropped.
+* `feed_update_goes_backwards_in_time` &mdash; Occurs when there is an update in the stream whose timestamp is a smaller value than that of the update immediately prior. This is an error by the feed provider as the stream cannot go backwards in time. The offending update is removed from the feed.
+
+Each entry in `parse_error` includes the `type` of error, taken from the list above, as well as some additional `details` about the error helpful for debugging.
 
 ## Further reading
 

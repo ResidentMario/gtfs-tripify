@@ -17,7 +17,9 @@ import numpy as np
 import pandas as pd
 
 from gtfs_tripify.utils import synthesize_route, finish_trip
-from gtfs_tripify.ops import drop_invalid_messages, drop_duplicate_messages, parse_feed
+from gtfs_tripify.ops import (
+    drop_invalid_messages, drop_duplicate_messages, drop_nonsequential_messages, parse_feed
+)
 
 
 ########################
@@ -545,13 +547,20 @@ def logify(updates):
             clean_updates.append(update)
         del update_dicts
 
-        # step 4: dict feed -> deduplicated dict feed
+        # step 4: dict feed -> deduplicated dict feed with known good timestamps
         clean_deduped_updates, drop_duplicate_messages_parse_errors =\
             drop_duplicate_messages(clean_updates)
 
         parse_errors += drop_duplicate_messages_parse_errors
         del clean_updates
-        updates = clean_deduped_updates
+
+        clean_updates, drop_nonsequential_messages_parse_errors =\
+            drop_nonsequential_messages(clean_deduped_updates)
+
+        parse_errors += drop_nonsequential_messages_parse_errors
+        del clean_deduped_updates
+
+        updates = clean_updates
 
     last_timestamp = updates[-1]['header']['timestamp']
 
