@@ -128,7 +128,7 @@ def drop_invalid_messages(update):
             warnings.warn(
                 f"The trip with the ID {message_trip_id} was provided a trip update with "
                 f"no stops in it in the GTFS-RT update for {update['header']['timestamp']}. "
-                f"The messages correspondong with this invalid trip were removed from the "
+                f"The messages corresponding with this invalid trip were removed from the "
                 f"update during pre-processing."
             )
             trip_ids_to_drop.add(message_trip_id)
@@ -344,7 +344,7 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
                 unique_trip_id in incomplete_trips_left}
     right_map = {left[unique_trip_id].trip_id.iloc[0]: None for 
                  unique_trip_id in incomplete_trips_left}
-    first_right_timestamp = np.min([*(itertools.chain(right_timestamps.values()))])
+    first_right_timestamp = np.min(np.min([*(itertools.chain(right_timestamps.values()))]))
 
     # determine candidate right trips based on trip_id match
     # pick the one which appears in the first timestamp included in the right time slice
@@ -381,7 +381,11 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
 
         # for trips we did not find a match for, finalize as a cancellation
         else:
-            left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
+            try:
+                left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
+            except TypeError:
+                import pdb; pdb.set_trace()
+                pass
 
 
     # for trips we did not find a a match for
@@ -403,6 +407,12 @@ def _join_trip_logs(left, right):
     In such cases recovering a full(er) record requires merging these two logs together. Here we 
     implement this operation.
     """
+    # Naive cases.
+    if len(left) == 0:
+        return right
+    elif len(right) == 0:
+        return left
+
     # Order the frames so that the earlier one is on the left.
     left_start = left['latest_information_time'].min()
     right_start = right['latest_information_time'].min()
@@ -458,15 +468,24 @@ def _join_trip_logs(left, right):
     # 3. The prior states that the train stopped at (or skipped) the last station in that log at
     #    some known maximum time, but the posterior log first entry minimum time is even earlier.
     #
-    # The lines below handle each one of these possible inconsistencies in turn.
+    # The next two lines handle cases (1) and (2), and the code block after that handles case (3).
     join.loc[:, 'minimum_time'] = join.loc[:, 'minimum_time'].fillna(method='ffill')
     join.loc[1:, 'minimum_time'] = np.maximum.accumulate(join.loc[1:, 'minimum_time'].values)
 
+    # A sequence of stops at the end of the left stop sequence may not appear in the right stop
+    # sequence. When the join is performed, `synthesize_route` will excise those stations b/c 
+    # they constitute proven non-stops. While the prior two corrections are accumulators and thus
+    # "safe" in this context, the following operation is a mutator and thus not safe. We must 
+    # take care not to accidentally mutate the wrong entry or go out of bounds.
     if len(join) > 1:
-        join.loc[len(left) -1, 'minimum_time'] = np.maximum(
-            np.nan_to_num(join.loc[len(left) - 2, 'maximum_time']),
-            join.loc[len(left) - 1, 'minimum_time']
-        )
+        left_isin_seq = left.stop_id.isin(right.stop_id)
+        if len(left_isin_seq) > 0:
+            update_idx = left_isin_seq[::-1].idxmax()
+            if update_idx > 0:
+                join.loc[update_idx, 'minimum_time'] = np.maximum(
+                    np.nan_to_num(join.loc[update_idx - 1, 'maximum_time']),
+                    join.loc[update_idx, 'minimum_time']
+                )
 
     # Again at the location of the join, we may also get an incomplete `maximum_time` entry, 
     # for the same reason. In this case we will take the `maximum_time` of the following entry. 
@@ -475,9 +494,9 @@ def _join_trip_logs(left, right):
     # However, we do not have that information at this time in the processing sequence. This is
     # an unfortunate but not particularly important, all things considered, technical 
     # shortcoming.
-    
     join.loc[:, 'maximum_time'] = join.loc[:, 'maximum_time'].fillna(method='bfill', limit=1)
 
+    # TODO: is this typing operation necessary?
     join = join.assign(latest_information_time=join.latest_information_time.astype(int))
     return join
 
