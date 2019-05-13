@@ -477,6 +477,7 @@ def _join_trip_logs(left, right):
     # they constitute proven non-stops. While the prior two corrections are accumulators and thus
     # "safe" in this context, the following operation is a mutator and thus not safe. We must 
     # take care not to accidentally mutate the wrong entry or go out of bounds.
+    # TODO: test this code path
     if len(join) > 1:
         left_isin_seq = left.stop_id.isin(right.stop_id)
         if len(left_isin_seq) > 0:
