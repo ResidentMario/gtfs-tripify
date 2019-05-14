@@ -381,11 +381,7 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
 
         # for trips we did not find a match for, finalize as a cancellation
         else:
-            try:
-                left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
-            except TypeError:
-                import pdb; pdb.set_trace()
-                pass
+            left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
 
 
     # for trips we did not find a a match for
