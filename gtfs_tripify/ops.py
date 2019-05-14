@@ -102,11 +102,13 @@ def drop_invalid_messages(update):
             message_type = 'vehicle_update'
             message_trip_id = message['vehicle']['trip']['trip_id']
             vehicle_update_ids.add(message_trip_id)
-        else:  # message['type'] == 'trip_update'
+        elif message['type'] == 'trip_update':
             message_type = 'trip_update'
             message_trip_id = message['trip_update']['trip']['trip_id']
             number_of_stops_remaining = len(message['trip_update']['stop_time_update'])
             trip_update_ids.add(message_trip_id)
+        else:  # message['type'] == 'alert'
+            continue
 
         if message_trip_id == '':
             messages_to_drop_idxs.add(idx)

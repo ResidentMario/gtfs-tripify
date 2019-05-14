@@ -500,14 +500,14 @@ def logify(updates):
     if updates == []:
         return dict(), dict(), None
 
-    def _parse_message_list_into_action_log(message_collection, timestamps):
-        actions_list = []
+    def _parse_message_list_into_action_logs(message_collection, timestamps):
+        action_logs = []
         for message, timestamp in zip(message_collection, timestamps):
             trip_update = message['trip_update']
             vehicle_update = message['vehicle_update']
             actions = actionify(trip_update, vehicle_update, timestamp)
-            actions_list.append(actions)
-        return pd.concat(actions_list)
+            action_logs.append(actions)
+        return action_logs
 
     # Accept either raw Protobuf updates or already-parsed dict updates.
     already_parsed = isinstance(updates[0], dict)
@@ -575,15 +575,13 @@ def logify(updates):
         message_collection = message_collections[unique_trip_id]
         message_timestamps = [message['timestamp'] for message in message_collection]
 
-        actions_logs = []
         last_tripwise_timestamp = message_collection[-1]['timestamp']
         trip_terminated = message_collection[-1]['timestamp'] < last_timestamp
 
-        action_log = _parse_message_list_into_action_log(
+        action_logs = _parse_message_list_into_action_logs(
             message_collection, message_timestamps
         )
-        actions_logs.append(action_log)
-        trip_log, trip_timestamps = tripify(actions_logs)
+        trip_log, trip_timestamps = tripify(action_logs)
         # TODO: is this necessary? Coerce types.
         trip_log = trip_log.assign(
             minimum_time=trip_log.minimum_time.astype('float'),
