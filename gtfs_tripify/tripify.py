@@ -429,60 +429,84 @@ def collate(updates, include_alerts=False):
     #   note: we intrinsically assume that the ID swap operation is atomic!
     # * the old and new trips share a route id (e.g. both are B trains)
     # * the new trip starts with the first remaining planned stop in the old trip
-    st_map = dict()
-    out = dict()
+    #
+    # a trip may be broken up into any number of segments, so we run the match-and-join operation
+    # as many times as necessary to cover all the cases
+    at_least_one_match_found = True
+    complete_trips = set()
 
-    # TODO: investigate what happens if there are >2 tripwise segments; probably need to loop
-    # need to do this in two passes, first building a struct of all potential matches
-    for uid in interim:
-        route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
-        start_timestamp = interim[uid][0]['timestamp']
+    while at_least_one_match_found:
+        st_map = dict()
+        updated_interim = dict()
+        at_least_one_match_found = False
+        already_merged = set()
 
-        if route_id in st_map:
-            if start_timestamp in st_map[route_id]:
-                st_map[route_id][start_timestamp].append(uid)
+        # need to do this in two passes, first building a struct of all potential matches
+        for uid in interim:
+            route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
+            start_timestamp = interim[uid][0]['timestamp']
+
+            if route_id in st_map:
+                if start_timestamp in st_map[route_id]:
+                    st_map[route_id][start_timestamp].append(uid)
+                else:
+                    st_map[route_id][start_timestamp] = [uid]
             else:
-                st_map[route_id][start_timestamp] = [uid]
-        else:
-            st_map[route_id] = {start_timestamp: [uid]}
+                st_map[route_id] = {start_timestamp: [uid]}
 
-    # then analyzing those potential matches one-by-one in detail
-    timestamp_sequence = [u['header']['timestamp'] for u in updates]
-    already_merged = set()
-    for uid in interim:
-        if uid in already_merged:
-            continue  # the trip has already been matched so we are done (but see to-do)
+        # then analyzing those potential matches one-by-one in detail
+        timestamp_sequence = [u['header']['timestamp'] for u in updates]
+        for uid in interim:
+            if uid in complete_trips:
+                # a trip lands in complete_trips IFF an earlier iteration of this loop did not
+                # match it to any other trips
+                continue
 
-        route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
-        last_timestamp = interim[uid][-1]['timestamp']
+            if uid in already_merged:
+                continue  # the trip has already been matched so we are done
 
-        end_index = timestamp_sequence.index(last_timestamp) + 1
-        if end_index >= len(timestamp_sequence):
-            continue  # the trip never terminated so we are done
+            route_id = interim[uid][0]['trip_update']['trip_update']['trip']['route_id']
+            last_timestamp = interim[uid][-1]['timestamp']
 
-        end_timestamp = timestamp_sequence[
-            timestamp_sequence.index(last_timestamp) + 1
-        ]
-        if end_timestamp not in st_map[route_id]:
-            continue  # no other trips on this route started at this time so we are done
+            end_index = timestamp_sequence.index(last_timestamp) + 1
+            if end_index >= len(timestamp_sequence):
+                continue  # the trip never terminated so we are done
 
-        possible_matches = set(st_map[route_id][end_timestamp]).difference(already_merged)
-        for candidate_uid in possible_matches:
-            current_first_remaining_stop = interim[uid][-1]['trip_update']['trip_update']\
-                ['stop_time_update'][0]['stop_id']
-            candidate_initial_stop = interim[candidate_uid][0]['trip_update']\
-                ['trip_update']['stop_time_update'][0]['stop_id']
+            end_timestamp = timestamp_sequence[
+                timestamp_sequence.index(last_timestamp) + 1
+            ]
+            if end_timestamp not in st_map[route_id]:
+                continue  # no other trips on this route started at this time so we are done
 
-            if (candidate_uid != uid and
-                candidate_initial_stop == current_first_remaining_stop):
-                # the trips match; stitch them together
-                out[uid] = interim[uid] + interim[candidate_uid]
-                already_merged.update({candidate_uid})
-                break
+            possible_matches = set(st_map[route_id][end_timestamp]).difference(already_merged)
+            for candidate_uid in possible_matches:
+                current_first_remaining_stop = interim[uid][-1]['trip_update']['trip_update']\
+                    ['stop_time_update'][0]['stop_id']
+                candidate_initial_stop = interim[candidate_uid][0]['trip_update']\
+                    ['trip_update']['stop_time_update'][0]['stop_id']
 
-    for uid in interim:
-        if uid not in out and uid not in already_merged:
-            out[uid] = interim[uid]
+                if (candidate_uid != uid and
+                    candidate_initial_stop == current_first_remaining_stop):
+                    at_least_one_match_found = True
+
+                    # the candidate_uid trip may have already been merged into updated_iterim in
+                    # an earlier instance in the loop; in that case we should append the updated
+                    # trip to the current trip, not the original trip!
+                    if candidate_uid in updated_interim:
+                        updated_interim[uid] = interim[uid] + updated_interim[candidate_uid]
+                        del updated_interim[candidate_uid]
+                    else:
+                        updated_interim[uid] = interim[uid] + interim[candidate_uid]
+
+                    already_merged.update({candidate_uid})
+                    break
+
+        for uid in interim:
+            if uid not in updated_interim and uid not in already_merged:
+                complete_trips.add(uid)
+                updated_interim[uid] = interim[uid]
+
+        interim = out = updated_interim
 
     return out
 

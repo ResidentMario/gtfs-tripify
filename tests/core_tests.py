@@ -10,7 +10,9 @@ from google.transit import gtfs_realtime_pb2
 import pytest
 
 import gtfs_tripify as gt
-from gtfs_tripify.tripify import dictify, actionify, logify, tripify, drop_invalid_messages
+from gtfs_tripify.tripify import (
+    dictify, actionify, logify, tripify, drop_invalid_messages, collate
+)
 from gtfs_tripify.ops import join_logbooks, drop_nonsequential_messages
 
 
@@ -1181,6 +1183,43 @@ class LogbookJoinTests(unittest.TestCase):
         assert result['uuid1'].action.values.tolist() == ['STOPPED_OR_SKIPPED']
 
 
+def create_mock_update_feed(
+    stop_time_update, trip_id=None, route_id=None, timestamp=None, current_status=None,
+    current_stop_id=None, include_vehicle_message=True
+):
+    trip_message = {
+        'id': '000001',
+        'type': 'trip_update',
+        'trip_update': {
+            'trip': {'route_id': '1' if not route_id else route_id,
+                     'start_date': '20160512',
+                     'trip_id': '1' if not trip_id else trip_id},
+            'stop_time_update': stop_time_update
+        }
+    }
+    vehicle_message = {
+        'id': '000002',
+        'type': 'vehicle_update',
+        'vehicle': {
+            'current_status': 'STOPPED_AT' if current_status is None else current_status,
+            'current_stop_sequence': 1,
+            'stop_id': current_stop_id if current_stop_id else '102S',
+            'timestamp': 1463025417 if not timestamp else timestamp,
+            'trip': {
+                'route_id': '1' if not route_id else route_id,
+                'start_date': '20160512',
+                'trip_id': '1' if not trip_id else trip_id
+            }
+        }
+    }
+    return {
+        'header': {
+            'gtfs_realtime_version': 1, 'timestamp': 1463025417 if not timestamp else timestamp
+        },
+        'entity': [trip_message, vehicle_message] if include_vehicle_message else [trip_message]
+    }
+
+
 class LogbookTripMergeTests(unittest.TestCase):
     """
     End-to-end runs are not unique on trip_id and may be broken up into several trip segments.
@@ -1188,116 +1227,72 @@ class LogbookTripMergeTests(unittest.TestCase):
     subset of such segments that are actually a single trip works as expected.
     """
 
-    def test_logbook_trip_merge_static(self):
+    def test_logbook_trip_merge_trip_id_changed(self):
         """
         A merge where only the trip_id has changed.
         """
-        trip_message_1 = {
-            'id': '000001',
-            'type': 'trip_update',
-            'trip_update': {
-                'trip': {'route_id': '1',
-                         'start_date': '20160512',
-                         'trip_id': ''},
-                'stop_time_update': [
-                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
-                ]
-            }
-        }
-        trip_message_2 = {
-            'id': '000002',
-            'type': 'trip_update',
-            'trip_update': {
-                'trip': {'route_id': '1',
-                         'start_date': '20160512',
-                         'trip_id': ''},
-                'stop_time_update': [
-                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
-                ]
-            }
-        }
-        feed_1 = {
-            'header': {'gtfs_realtime_version': 1,
-                       'timestamp': 1463025417},
-            'entity': [trip_message_1]
-        }
-        feed_2 = {
-            'header': {'gtfs_realtime_version': 1,
-                       'timestamp': 1463025418},
-            'entity': [trip_message_2]
-        }
+        stop_seq = [{'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}]
+        feed_1 = create_mock_update_feed(stop_seq, trip_id='1', timestamp=1463025417)
+        feed_2 = create_mock_update_feed(stop_seq, trip_id='2', timestamp=1463025418)
 
         result, _, _ = logify([feed_1, feed_2])
         assert len(result) == 1
 
-    def test_logbook_trip_merge(self):
+    def test_logbook_trip_merge_trip_id_and_incoming_status_changed(self):
         """
         A merge where the trip_id and incoming status has changed.
         """
-        trip_message_1 = {
-            'id': '000001',
-            'type': 'trip_update',
-            'trip_update': {
-                'trip': {'route_id': '1',
-                         'start_date': '20160512',
-                         'trip_id': '1'},
-                'stop_time_update': [
-                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
-                ]
-            }
-        }
-        vehicle_message_1 = {
-            'id': '000002',
-            'type': 'vehicle_update',
-            'vehicle': {
-                'current_status': 'STOPPED_AT',
-                'current_stop_sequence': 34,
-                'stop_id': '102S',
-                'timestamp': 1463025417,
-                'trip': {
-                    'route_id': '1',
-                    'start_date': '20160512',
-                    'trip_id': '1'
-                }
-            }
-        }
-        trip_message_2 = {
-            'id': '000001',
-            'type': 'trip_update',
-            'trip_update': {
-                'trip': {'route_id': '1',
-                         'start_date': '20160512',
-                         'trip_id': '2'},
-                'stop_time_update': [
-                    {'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}
-                ]
-            }
-        }
-        vehicle_message_2 = {
-            'id': '000002',
-            'type': 'vehicle_update',
-            'vehicle': {
-                'current_status': 'INCOMING_AT',
-                'current_stop_sequence': 34,
-                'stop_id': '103S',
-                'timestamp': 1463025418,
-                'trip': {
-                    'route_id': '1',
-                    'start_date': '20160512',
-                    'trip_id': '2'
-                }
-            }
-        }
-        feed_1 = {
-            'header': {'gtfs_realtime_version': 1,
-                       'timestamp': 1463025417},
-            'entity': [trip_message_1, vehicle_message_1]
-        }
-        feed_2 = {
-            'header': {'gtfs_realtime_version': 1,
-                       'timestamp': 1463025418},
-            'entity': [trip_message_2, vehicle_message_2]
-        }
+        stop_seq = [{'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}]
+        feed_1 = create_mock_update_feed(
+            stop_seq, trip_id='1', timestamp=1463025417, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+        feed_2 = create_mock_update_feed(
+            stop_seq, trip_id='2', timestamp=1463025418, current_status='INCOMING_AT',
+            current_stop_id='103S'
+        )
 
         result, _, _ = logify([feed_1, feed_2])
+        assert len(result) == 1
+
+    def test_logbook_trip_merge_threeway_id_changed(self):
+        """
+        A merge where the trip got segments more than once.
+        """
+        stop_seq = [{'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}]
+        feed_1 = create_mock_update_feed(
+            stop_seq, trip_id='1', timestamp=1463025417, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+        feed_2 = create_mock_update_feed(
+            stop_seq, trip_id='2', timestamp=1463025418, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+        feed_3 = create_mock_update_feed(
+            stop_seq, trip_id='3', timestamp=1463025419, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+
+        result, _, _ = logify([feed_1, feed_2, feed_3])
+        assert len(result) == 1
+
+    def test_logbook_trip_merge_threeway_trip_id_and_incoming_status_changed(self):
+        """
+        A merge where the trip got segments more than once, and also the incoming status changes.
+        """
+        stop_seq = [{'arrival': 1463026080, 'departure': np.nan, 'stop_id': '103S'}]
+        feed_1 = create_mock_update_feed(
+            stop_seq, trip_id='1', timestamp=1463025417, current_status='INCOMING_AT',
+            current_stop_id='102S'
+        )
+        feed_2 = create_mock_update_feed(
+            stop_seq, trip_id='2', timestamp=1463025418, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+        feed_3 = create_mock_update_feed(
+            stop_seq, trip_id='3', timestamp=1463025419, current_status='STOPPED_AT',
+            current_stop_id='102S'
+        )
+
+        result, _, _ = logify([feed_1, feed_2, feed_3])
         assert len(result) == 1
