@@ -273,7 +273,8 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
 
             st_i += 1
 
-        elif next_record['stop_id'] != next_stop and next_record['stop_id'] == most_recent_passed_stop:
+        elif (next_record['stop_id'] != next_stop and 
+              next_record['stop_id'] == most_recent_passed_stop):
             lines[-1][4] = information_times[it_i + 1]
             it_i += 1
             kd_i += 1
@@ -326,8 +327,8 @@ def tripify(tripwise_action_logs, finished=False, finish_information_time=None):
 
 def collate_update(update, include_alerts=False):
     """
-    Collates the messages in an update into a list with the following shape, which is convenient for
-    further processing:
+    Collates the messages in an update into a list with the following shape, which is convenient
+    for further processing:
 
         [
             {'trip_id': $TRIP_ID, 
@@ -361,7 +362,7 @@ def collate_update(update, include_alerts=False):
 
 def collate(updates, include_alerts=False):
     """
-    Sorts the messages in a list of updates into a nested dict of messages keyed on a unique ID. 
+    Sorts the messages in a list of updates into a nested dict of messages keyed on a unique ID.
     Output is in the following format:
 
     {
@@ -375,7 +376,7 @@ def collate(updates, include_alerts=False):
         ...
     }
 
-    Note that the interior message is in the format returned by the `collate_update` subroutine, 
+    Note that the interior message is in the format returned by the `collate_update` subroutine,
     which handles collocation *within* an update, whilst this method handles collocation *between*
     updates.
 
@@ -565,7 +566,6 @@ def logify(updates):
     last_timestamp = updates[-1]['header']['timestamp']
 
     # collate generates `unique_trip_id` values for each trip and keys them to message collections
-    # TODO: it is probably necessary to cut cancellations before collation?
     message_collections = collate(updates)
 
     logbook = dict()
