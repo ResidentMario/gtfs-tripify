@@ -7,7 +7,7 @@ setup(
     version='0.0.3',
     install_requires=['numpy', 'pandas', 'requests', 'gtfs-realtime-bindings'],
     extras_require={
-        'tests': ['pytest']
+        'develop': ['pytest']
     },
     description='TODO.',
     author='Aleksey Bilogur',
