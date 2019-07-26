@@ -1,0 +1,226 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Parse errors &mdash; gtfs_tripify 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Further reading" href="further_reading.html" />
+    <link rel="prev" title="Additional methods" href="additional_methods.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> gtfs_tripify
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gtfs_tripify</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Parse errors</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/parse_errors.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="parse-errors">
+<h1>Parse errors<a class="headerlink" href="#parse-errors" title="Permalink to this headline">¶</a></h1>
+<p>The stream of updates you pass to <code class="docutils literal notranslate"><span class="pre">gt.logify</span></code> may contain any of a large number of non-fatal errors and data inconsistencies, a list of which is returned as part of the method’s output. This section documents what they are and how they are handled.</p>
+<p>First, some terminology:</p>
+<ul class="simple">
+<li><p><strong>update</strong> — A single parsed GTFS-RT update.</p></li>
+<li><p><strong>message</strong> — An individual entity in an update. There are two kinds: trip update messages, which give schedule information, and vehicle update messages, which give train location information. Complimentary messages are linked by <code class="docutils literal notranslate"><span class="pre">trip_id</span></code>.</p></li>
+<li><p><strong>stream</strong> — A sequential list of updates over time.</p></li>
+</ul>
+<p>Now for the actual errors:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">parsing_into_protobuf_raised_exception</span></code> — Occurs when the bytes of a feed update cannot successfully be parsed into a Protobuf. This indicates data corruption. These messages are removed from the field. This will degrade the accuracy of the logbook estimates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">parsing_into_protobuf_raised_runtime_warning</span></code> — Occurs when the bytes of a feed update can successfully be parsed into a Protobuf, but doing so raises a <code class="docutils literal notranslate"><span class="pre">RuntimeWarning</span></code>. This likely indicates data loss, and since <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> is sensitive to such data loss these messages are removed from the feed. This will degrade the accuracy of the logbook estimates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">message_with_null_trip_id</span></code> — Occurs when a message in an update in the feed has its <code class="docutils literal notranslate"><span class="pre">trip_id</span></code> set to empty string (<code class="docutils literal notranslate"><span class="pre">''</span></code>). Empty strings are not valid trip identifiers and indicate an error by the feed provider. The offending messages are dropped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">trip_has_trip_update_with_no_stops_remaining</span></code> — Occurs when there is a trip update (and optionally a complimentary vehicle update) which has no stops remaining. This is an error by the feed provider, as such trips are supposed to be removed from the feed upon arriving at their final stations. The messages corresponding with this <code class="docutils literal notranslate"><span class="pre">trip_id</span></code> are dropped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">trip_id_with_trip_update_but_no_vehicle_update</span></code> — Occurs when there is a trip update with no complimentary vehicle update. This is an error by the feed provider: there is schedule information about a trip but no location information, which makes parsing that schedule impossible. The offending message is dropped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feed_updates_with_duplicate_timestamps</span></code> — Occurs when there are multiple updates in the feed with the same timestamp. This means that either a double read occurred or more likely the feed stopped updating and returned stale data. The offending updates are removed from the field.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feed_update_has_null_timestamp</span></code> — Occurs when there is an update has its timestamp set to empty string (<code class="docutils literal notranslate"><span class="pre">''</span></code>) or <code class="docutils literal notranslate"><span class="pre">0</span></code>. These values are null sentinels and indicate an error by the feed provider. The offending update is dropped.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">feed_update_goes_backwards_in_time</span></code> — Occurs when there is an update in the stream whose timestamp is a smaller value than that of the update immediately prior. This is an error by the feed provider as the stream cannot go backwards in time. The offending update is removed from the feed.</p></li>
+</ul>
+<p>Each entry in <code class="docutils literal notranslate"><span class="pre">parse_error</span></code> includes the <code class="docutils literal notranslate"><span class="pre">type</span></code> of error, taken from the list above, as well as some additional <code class="docutils literal notranslate"><span class="pre">details</span></code> about the error helpful for debugging.</p>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="further_reading.html" class="btn btn-neutral float-right" title="Further reading" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="additional_methods.html" class="btn btn-neutral float-left" title="Additional methods" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Aleksey Bilogur
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

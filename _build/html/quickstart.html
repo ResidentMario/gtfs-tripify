@@ -1,0 +1,260 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Quickstart &mdash; gtfs_tripify 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial" href="tutorial.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> gtfs_tripify
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gtfs_tripify</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Quickstart</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/quickstart.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h1>
+<p>Begin by running the following to install this package on your local
+machine:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install gtfs-tripify
+</pre></div>
+</div>
+<p>First we need to prepare our GTFS-Realtime feeds of interest.
+GTFS-Realtime is a highly compressed binary format encoded using a
+Google data encoding known as Protobuf.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load GTFS-Realtime feeds.</span>
+<span class="c1"># For this example we will use publicly archived MTA data.</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+
+<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>We now have the raw bytes for a sequence of GTFS-Realtime feed updates.
+Each update represents the state of the same wired-up slice of a transit
+network at a different but consecutive point in time.</p>
+<p>This is where <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> comes in:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now we have a <code class="docutils literal notranslate"><span class="pre">logbook</span></code>. If we inspect it we see that it is a <code class="docutils literal notranslate"><span class="pre">dict</span></code>
+with the following format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s1">&#39;87a19e7a-66dd-11e9-b1fe-8c8590adc94b&#39;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span> <span class="nb">object</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="s1">&#39;87a19db4-66dd-11e9-a0e0-8c8590adc94b&#39;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span> <span class="nb">object</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Each entry in the <code class="docutils literal notranslate"><span class="pre">logbook</span></code> is a <code class="docutils literal notranslate"><span class="pre">log</span></code>. Each log provides
+information about a single train trip in the system.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">print</span><span class="p">(</span><span class="n">logbook</span><span class="p">[</span><span class="s1">&#39;87a19e7a-66dd-11e9-b1fe-8c8590adc94b&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>This looks something like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trip_id</span><span class="p">,</span><span class="n">route_id</span><span class="p">,</span><span class="n">action</span><span class="p">,</span><span class="n">minimum_time</span><span class="p">,</span><span class="n">maximum_time</span><span class="p">,</span><span class="n">stop_id</span><span class="p">,</span><span class="n">latest_information_time</span><span class="p">,</span><span class="n">unique_trip_id</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440299.0</span><span class="p">,</span><span class="mf">1559440695.0</span><span class="p">,</span><span class="mi">726</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440315</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440846.0</span><span class="p">,</span><span class="mf">1559440860.0</span><span class="p">,</span><span class="mi">725</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440860</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440936.0</span><span class="p">,</span><span class="mf">1559440950.0</span><span class="p">,</span><span class="mi">724</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440950</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441016.0</span><span class="p">,</span><span class="mf">1559441030.0</span><span class="p">,</span><span class="mi">723</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441030</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441211.0</span><span class="p">,</span><span class="mf">1559441226.0</span><span class="p">,</span><span class="mi">721</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441226</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441291.0</span><span class="p">,</span><span class="mf">1559441306.0</span><span class="p">,</span><span class="mi">720</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441306</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441411.0</span><span class="p">,</span><span class="mf">1559441426.0</span><span class="p">,</span><span class="mi">719</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441426</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441561.0</span><span class="p">,</span><span class="mf">1559441591.0</span><span class="p">,</span><span class="mi">718</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441591</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441942.0</span><span class="p">,</span><span class="mf">1559441956.0</span><span class="p">,</span><span class="mi">712</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441956</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+</pre></div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="Tutorial" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Aleksey Bilogur
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

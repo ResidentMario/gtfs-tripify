@@ -1,1 +1,0 @@
-from .tripify import logify

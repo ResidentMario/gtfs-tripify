@@ -1,0 +1,329 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Tutorial &mdash; gtfs_tripify 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Additional methods" href="additional_methods.html" />
+    <link rel="prev" title="Quickstart" href="quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> gtfs_tripify
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#building-a-daily-roll-up">Building a daily roll-up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-a-larger-dataset">Building a larger dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gtfs_tripify</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Tutorial</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/tutorial.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Interested in New York City transit? Want to learn more reasons why your particular train commute is good or bad? <strong>This tutorial will show you how to roll your own daily MTA train arrival dataset using Python.</strong> The result can then be used to explore questions about train service that schedule data alone couldn’t answer.</p>
+<div class="section" id="building-a-daily-roll-up">
+<h2>Building a daily roll-up<a class="headerlink" href="#building-a-daily-roll-up" title="Permalink to this headline">¶</a></h2>
+<p>To begin, visit the MTA GTFS-RT Archive at <a class="reference external" href="http://web.mta.info/developers/data/archives.html">http://web.mta.info/developers/data/archives.html</a>:</p>
+<p><img alt="image0" src="https://i.imgur.com/Inma37H.png" /></p>
+<p>This page contains monthly rollups of realtime train location data in what is known as the “GTFS-RT format”. This is the data that powers both the train tracker apps on your phone and the arrival clocks on the station platforms, and the MTA helpful provides a historical archive of this data online.</p>
+<p>The archive covers all train lines in the system. Pick a month that you are interested in, and click on the link to download it to your computer. Be prepared to wait a while; the files are roughly 30 GB in size.</p>
+<p>Once the download is finished, you will have a file named something like <code class="docutils literal notranslate"><span class="pre">201908.zip</span></code> on your computer:</p>
+<p><img alt="image1" src="https://i.imgur.com/Reb47hY.png" /></p>
+<p>Double click on this file to extract the files inside, and you will find that inside this <code class="docutils literal notranslate"><span class="pre">zip</span></code> file is <em>another</em> layer of <code class="docutils literal notranslate"><span class="pre">zip</span></code> files:</p>
+<p><img alt="image2" src="https://i.imgur.com/hPipcpY.png" /></p>
+<p>Pick a day that you are interested in and double click on it again to extract the files. This will result in a folder containing many, many tiny files:</p>
+<p><img alt="image3" src="https://i.imgur.com/fGPAKQT.png" /></p>
+<p>Each of these sub-sub-files is a single GTFS-RT message. Each message is a snapshot of the state of a slice of the MTA system. It has important two properties:</p>
+<ul class="simple">
+<li><p>The trains that this message covers.</p></li>
+<li><p>The timestamp that this message represents information about.</p></li>
+</ul>
+<p>For example, the file consider the file <code class="docutils literal notranslate"><span class="pre">gtfs_7_20190601_042000.gtfs</span></code>. This file contains a snapshot of the state of all 7 trains in the MTA system as of 4:20 AM, June 1st, 2019.</p>
+<p>Trains which run similar service routes may get “packaged up” into the same message. For example, the file <code class="docutils literal notranslate"><span class="pre">gtfs_ace_20190601_075709.gtfs</span></code> contains a snapshot of the state of all A, C, and E trains in the MTA system.</p>
+<p>Some trains are packaged with out train lines, but seemingly for historical reasons are excluded from the name of the file:</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">Z</span></code> train is included in the <code class="docutils literal notranslate"><span class="pre">gtfs_J</span></code> messages.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">7X</span></code> train is included in the <code class="docutils literal notranslate"><span class="pre">gtfs_7</span></code> messages.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">FS</span></code> (Franklin Avenue Shuttle) and <code class="docutils literal notranslate"><span class="pre">H</span></code> (Rockaway Shuttle) are included in the <code class="docutils literal notranslate"><span class="pre">ACE</span></code> messages.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">W</span></code> is included in the <code class="docutils literal notranslate"><span class="pre">gtfs_NQR</span></code> messages.</p></li>
+</ul>
+<p>At this time, the following trains are <em>excluded</em> from the dataset, for unknown reasons:</p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code>, <code class="docutils literal notranslate"><span class="pre">3</span></code>, <code class="docutils literal notranslate"><span class="pre">4</span></code>, <code class="docutils literal notranslate"><span class="pre">5</span></code>, <code class="docutils literal notranslate"><span class="pre">6</span></code>, and <code class="docutils literal notranslate"><span class="pre">6X</span></code> trains do not appear in recent archives, although they appear to appear to have  been included in the archives in the past (<a class="reference external" href="https://groups.google.com/forum/#!topic/mtadeveloperresources/pX3at6TWwY8">tracking issue</a>).</p></li>
+<li><p>The <a class="reference external" href="https://en.wikipedia.org/wiki/S_(New_York_City_Subway_service)">late-night shuttles</a>.</p></li>
+</ul>
+<p>Now that we understand how to get the trains we want, let’s talk about timestamps. The MTA system updates several times per minute; the exact interval and the reliability of the update sequence varies. Each of these updates is timestamped in EST.</p>
+<p>So for example, the <code class="docutils literal notranslate"><span class="pre">gtfs_7_20190601_042000.gtfs</span></code> message we talked about earlier represents a snapshot dating from 4:20 AM sharp on January 1st 2019. The message that immediately follows, <code class="docutils literal notranslate"><span class="pre">gtfs_7_20190601_042015.gtfs</span></code>, is a snapshot of the system as of 4:20:15 on January 1st 2019, e.g. 15 seconds later; and so on.</p>
+<p>Choose a train line or set of train lines, and copy the subset of the files whose arrival times you are interested in. For the purposes of this demo, I will grab data on every 7 train that ran on January 1st 2019. Paste this into another folder somewhere on your computer.</p>
+<p>This data is snapshot data in an encoded binary format known as a <a class="reference external" href="https://developers.google.com/protocol-buffers/">Protocol buffer</a>. We now need to convert it into tabular data that we can actually analyze. This is actually an extremely tricky and difficult process. Luckily we can just use <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> to handle this part of the process. To begin, install <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> using <code class="docutils literal notranslate"><span class="pre">pip</span></code> from the command line:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install gtfs_tripify
+</pre></div>
+</div>
+<p>Navigate to that folder you dumped the files you are interested in, and run the following snippet of Python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="s1">&#39;.py&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+<span class="n">logbook</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+<span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="s1">&#39;logbook.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>An easy way to run this is to copy paste this code into a <code class="docutils literal notranslate"><span class="pre">run.py</span></code> file and then run <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">run.py</span></code> on your command line.</p>
+<p>Running this script you will probably send output to your terminal regarding non-fatal errors in the data stream, this should be safe to ignore.</p>
+<p>This script may take a few tens of minutes to finish running. Once it is done, you will be left with a <code class="docutils literal notranslate"><span class="pre">logbook.csv</span></code> file on your computer containing train arrival and departure data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trip_id</span><span class="p">,</span><span class="n">route_id</span><span class="p">,</span><span class="n">action</span><span class="p">,</span><span class="n">minimum_time</span><span class="p">,</span><span class="n">maximum_time</span><span class="p">,</span><span class="n">stop_id</span><span class="p">,</span><span class="n">latest_information_time</span><span class="p">,</span><span class="n">unique_trip_id</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440299.0</span><span class="p">,</span><span class="mf">1559440695.0</span><span class="p">,</span><span class="mi">726</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440315</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440846.0</span><span class="p">,</span><span class="mf">1559440860.0</span><span class="p">,</span><span class="mi">725</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440860</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440936.0</span><span class="p">,</span><span class="mf">1559440950.0</span><span class="p">,</span><span class="mi">724</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440950</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441016.0</span><span class="p">,</span><span class="mf">1559441030.0</span><span class="p">,</span><span class="mi">723</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441030</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441211.0</span><span class="p">,</span><span class="mf">1559441226.0</span><span class="p">,</span><span class="mi">721</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441226</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441291.0</span><span class="p">,</span><span class="mf">1559441306.0</span><span class="p">,</span><span class="mi">720</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441306</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441411.0</span><span class="p">,</span><span class="mf">1559441426.0</span><span class="p">,</span><span class="mi">719</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441426</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441561.0</span><span class="p">,</span><span class="mf">1559441591.0</span><span class="p">,</span><span class="mi">718</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441591</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
+<span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441942.0</span><span class="p">,</span><span class="mf">1559441956.0</span><span class="p">,</span><span class="mi">712</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441956</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94</span>
+</pre></div>
+</div>
+<p>This dataset has the following schema:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">trip_id</span></code>: The ID assigned to the trip in the GTFS-Realtime record.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">route_id</span></code>: The ID of the route. In New York City these are easy to    read: 2 means this is a number 2 train.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stop_id</span></code>: The ID assigned to the stop in question.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">action</span></code>: The action that the given train took at the given stop. One of <code class="docutils literal notranslate"><span class="pre">STOPPED_AT</span></code>, <code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code>, or <code class="docutils literal notranslate"><span class="pre">EN_ROUTE_TO</span></code> (the latter only occurs if the trip was still in progress as of the last message in the feed list).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minimum_time</span></code>: The minimum time at which the train pulled into the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. This time is a <a class="reference external" href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maximum_time</span></code>: The maximum time at which the train pulled out of the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. Also a Unix timestamp.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">latest_information_time</span></code>: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.</p></li>
+</ul>
+<p>See <cite>here &lt;https://gist.github.com/ResidentMario/73559f685ec8d4ddf9041a26d5934ac4&gt;_</cite> for a snapshot of this demo dataset.</p>
+<p>At this point you can jump into your favorite data analysis environment and start exploring!</p>
+</div>
+<div class="section" id="building-a-larger-dataset">
+<h2>Building a larger dataset<a class="headerlink" href="#building-a-larger-dataset" title="Permalink to this headline">¶</a></h2>
+<p>This is a pretty simple example. Naturally, you may be wondering: can I get more data? The answer is yes!</p>
+<p>The key limitation is memory. <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my machine for example, I can only process data one day at a time.</p>
+<p>To build a dataset that’s larger than what you can fit in memory, construct two logbooks for two contiguous “time slices” of the GTFS-RT stream, then combine them using <a class="reference external" href="https://github.com/ResidentMario/gtfs-tripify/blob/0d61adb7b8b819c7eddb0c409bb2f4b64697aa5f/gtfs_tripify/ops.py#L313">gt.ops.merge_logbooks</a>.</p>
+<p>For example, the following script will build and save to disk an arrival dataset for all 7 trains on <em>both</em> July 1st and July 2nd 2019:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">from</span> <span class="nn">zipfile</span> <span class="kn">import</span> <span class="n">ZipFile</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">DOWNLOAD_URL</span> <span class="o">=</span> <span class="s1">&#39;~/Downloads/201906.zip&#39;</span>
+
+<span class="n">z</span> <span class="o">=</span> <span class="n">ZipFile</span><span class="p">(</span><span class="n">DOWNLOAD_URL</span><span class="p">)</span>
+<span class="n">z</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s1">&#39;20190601.zip&#39;</span><span class="p">)</span>
+<span class="n">z</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s1">&#39;201906012.zip&#39;</span><span class="p">)</span>
+
+<span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="s1">&#39;.py&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filename</span> <span class="ow">and</span> <span class="s1">&#39;gtfs_7_&#39;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+<span class="n">first_logbook</span><span class="p">,</span> <span class="n">first_logbook_timestamps</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">])</span>
+<span class="n">second_logbook</span><span class="p">,</span> <span class="n">second_logbook_timestamps</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">:])</span>
+<span class="n">logbook</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">merge_logbooks</span><span class="p">(</span>
+    <span class="p">[(</span><span class="n">first_logbook</span><span class="p">,</span> <span class="n">first_logbook_timestamps</span><span class="p">),</span> <span class="p">(</span><span class="n">second_logbook</span><span class="p">,</span> <span class="n">second_logbook_timestamps</span><span class="p">)],</span>
+    <span class="s1">&#39;logbook.csv&#39;</span>
+<span class="p">)</span>
+<span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="s1">&#39;logbook.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>That concludes this basic introduction to parsing MTA GTFS-RT data with <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code>. To see the full potential of this data stream in action, consider check out the <a class="reference external" href="https://www.nytimes.com/interactive/2019/07/08/upshot/nyc-subway-variability-calculator.html">NYC Subway Variability Calculator</a> built by the New York Times.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="additional_methods.html" class="btn btn-neutral float-right" title="Additional methods" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Aleksey Bilogur
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
