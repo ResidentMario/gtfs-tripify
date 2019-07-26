@@ -6,3 +6,5 @@ notebooks/
 .vscode
 dist/
 build/
+docs/_build/
+
