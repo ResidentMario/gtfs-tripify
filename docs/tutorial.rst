@@ -113,7 +113,7 @@ This dataset has the following schema:
 -  ``maximum_time``: The maximum time at which the train pulled out of the station. May be ``NaN``. Also a Unix timestamp.
 -  ``latest_information_time``: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.
 
-See `here <https://gist.github.com/ResidentMario/73559f685ec8d4ddf9041a26d5934ac4>_` for a snapshot of this demo dataset.
+See `here <https://gist.github.com/ResidentMario/73559f685ec8d4ddf9041a26d5934ac4>`_ for a snapshot of this demo dataset.
 
 At this point you can jump into your favorite data analysis environment and start exploring!
 
