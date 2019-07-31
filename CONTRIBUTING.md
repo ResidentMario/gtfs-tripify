@@ -11,7 +11,7 @@ git clone https://github.com/ResidentMario/gtfs-tripify.git
 You can then set up your own branch version of the code, and work on your changes for a pull request from there.
 
 ```sh
-cd fahr
+cd gtfs_tripify
 git checkout -B new-branch-name
 ```
 
