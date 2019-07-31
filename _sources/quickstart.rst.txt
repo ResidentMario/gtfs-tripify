@@ -6,7 +6,7 @@ machine:
 
 .. code:: sh
 
-   pip install gtfs-tripify
+   pip install gtfs_tripify
 
 First we need to prepare our GTFS-Realtime feeds of interest.
 GTFS-Realtime is a highly compressed binary format encoded using a
