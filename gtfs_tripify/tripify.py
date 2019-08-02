@@ -618,7 +618,9 @@ def logify(updates):
             trip_terminated_time = last_tripwise_timestamp
             trip_log = finish_trip(trip_log, trip_terminated_time)
 
-        logbook[unique_trip_id] = trip_log
+        if len(trip_log) > 0:
+            logbook[unique_trip_id] = trip_log
+
         timestamps[unique_trip_id] = trip_timestamps
 
     return logbook, timestamps, parse_errors

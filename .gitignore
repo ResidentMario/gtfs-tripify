@@ -2,9 +2,10 @@
 .idea
 __pycache__
 gtfs_tripify.egg-info/
-notebooks/
 .vscode
 dist/
 build/
 docs/_build/
-
+bad-case-analysis.ipynb
+data/
+.ipynb_checkpoints/
