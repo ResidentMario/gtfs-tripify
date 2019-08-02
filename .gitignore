@@ -9,3 +9,5 @@ docs/_build/
 bad-case-analysis.ipynb
 data/
 .ipynb_checkpoints/
+.DS_Store
+data_analysis_demo_files/
