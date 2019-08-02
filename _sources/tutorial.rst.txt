@@ -103,18 +103,6 @@ This script may take a few tens of minutes to finish running. Once it is done, y
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441561.0,1559441591.0,718N,1559441591,3ac1c948-af61-11e9-909a-8c8590adc94b
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441942.0,1559441956.0,712N,1559441956,3ac1c948-af61-11e9-909a-8c8590adc94
 
-This dataset has the following schema:
-
--  ``trip_id``: The ID assigned to the trip in the GTFS-Realtime record. 
--  ``route_id``: The ID of the route. In New York City these are easy to    read: 2 means this is a number 2 train.
--  ``stop_id``: The ID assigned to the stop in question.
--  ``action``: The action that the given train took at the given stop. One of ``STOPPED_AT``, ``STOPPED_OR_SKIPPED``, or ``EN_ROUTE_TO`` (the latter only occurs if the trip was still in progress as of the last message in the feed list).
--  ``minimum_time``: The minimum time at which the train pulled into the station. May be ``NaN``. This time is a `Unix timestamp`_.
--  ``maximum_time``: The maximum time at which the train pulled out of the station. May be ``NaN``. Also a Unix timestamp.
--  ``latest_information_time``: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.
-
-See `here <https://gist.github.com/ResidentMario/73559f685ec8d4ddf9041a26d5934ac4>`_ for a snapshot of this demo dataset.
-
 At this point you can jump into your favorite data analysis environment and start exploring!
 
 Building a larger dataset
@@ -124,10 +112,9 @@ This is a pretty simple example. Naturally, you may be wondering: can I get more
 
 The key limitation is memory. ``gtfs_tripify`` does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my machine for example, I can only process data one day at a time.
 
-To build a dataset that’s larger than what you can fit in memory, construct two logbooks for two contiguous “time slices” of the GTFS-RT stream, then combine them using gt.ops.merge_logbooks_.
+The `gt.ops.merge_logbooks` method is specifically designed to address this use case. To learn more, see the section `Additional methods`_.
 
-.. _Unix timestamp: https://en.wikipedia.org/wiki/Unix_time
-.. _gt.ops.merge_logbooks: https://github.com/ResidentMario/gtfs-tripify/blob/0d61adb7b8b819c7eddb0c409bb2f4b64697aa5f/gtfs_tripify/ops.py#L313
+.. _Additional methods: https://residentmario.github.io/gtfs-tripify/additional_methods.html
 
 For example, the following script will build and save to disk an arrival dataset for all 7 trains on *both* July 1st and July 2nd 2019:
 
@@ -156,6 +143,11 @@ For example, the following script will build and save to disk an arrival dataset
        'logbook.csv'
    )
    gt.ops.to_csv(logbook, 'logbook.csv')
+
+
+
+.. _Unix timestamp: https://en.wikipedia.org/wiki/Unix_time
+.. _gt.ops.merge_logbooks: https://github.com/ResidentMario/gtfs-tripify/blob/0d61adb7b8b819c7eddb0c409bb2f4b64697aa5f/gtfs_tripify/ops.py#L313
 
 Conclusion
 ----------

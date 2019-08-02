@@ -35,7 +35,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Additional methods" href="additional_methods.html" />
+    <link rel="next" title="Data analysis demo" href="data_analysis_demo.html" />
     <link rel="prev" title="Quickstart" href="quickstart.html" /> 
 </head>
 
@@ -89,6 +89,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#conclusion">Conclusion</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="data_analysis_demo.html">Data analysis demo</a></li>
 <li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
@@ -226,24 +227,13 @@
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559441942.0</span><span class="p">,</span><span class="mf">1559441956.0</span><span class="p">,</span><span class="mi">712</span><span class="n">N</span><span class="p">,</span><span class="mi">1559441956</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94</span>
 </pre></div>
 </div>
-<p>This dataset has the following schema:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">trip_id</span></code>: The ID assigned to the trip in the GTFS-Realtime record.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">route_id</span></code>: The ID of the route. In New York City these are easy to    read: 2 means this is a number 2 train.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">stop_id</span></code>: The ID assigned to the stop in question.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">action</span></code>: The action that the given train took at the given stop. One of <code class="docutils literal notranslate"><span class="pre">STOPPED_AT</span></code>, <code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code>, or <code class="docutils literal notranslate"><span class="pre">EN_ROUTE_TO</span></code> (the latter only occurs if the trip was still in progress as of the last message in the feed list).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">minimum_time</span></code>: The minimum time at which the train pulled into the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. This time is a <a class="reference external" href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">maximum_time</span></code>: The maximum time at which the train pulled out of the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. Also a Unix timestamp.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">latest_information_time</span></code>: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.</p></li>
-</ul>
-<p>See <a class="reference external" href="https://gist.github.com/ResidentMario/73559f685ec8d4ddf9041a26d5934ac4">here</a> for a snapshot of this demo dataset.</p>
 <p>At this point you can jump into your favorite data analysis environment and start exploring!</p>
 </div>
 <div class="section" id="building-a-larger-dataset">
 <h2>Building a larger dataset<a class="headerlink" href="#building-a-larger-dataset" title="Permalink to this headline">¶</a></h2>
 <p>This is a pretty simple example. Naturally, you may be wondering: can I get more data? The answer is yes!</p>
 <p>The key limitation is memory. <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my machine for example, I can only process data one day at a time.</p>
-<p>To build a dataset that’s larger than what you can fit in memory, construct two logbooks for two contiguous “time slices” of the GTFS-RT stream, then combine them using <a class="reference external" href="https://github.com/ResidentMario/gtfs-tripify/blob/0d61adb7b8b819c7eddb0c409bb2f4b64697aa5f/gtfs_tripify/ops.py#L313">gt.ops.merge_logbooks</a>.</p>
+<p>The <cite>gt.ops.merge_logbooks</cite> method is specifically designed to address this use case. To learn more, see the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/additional_methods.html">Additional methods</a>.</p>
 <p>For example, the following script will build and save to disk an arrival dataset for all 7 trains on <em>both</em> July 1st and July 2nd 2019:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
 <span class="kn">from</span> <span class="nn">zipfile</span> <span class="kn">import</span> <span class="n">ZipFile</span>
@@ -285,7 +275,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="additional_methods.html" class="btn btn-neutral float-right" title="Additional methods" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="data_analysis_demo.html" class="btn btn-neutral float-right" title="Data analysis demo" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

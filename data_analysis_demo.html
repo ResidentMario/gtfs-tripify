@@ -1,0 +1,587 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Data analysis demo &mdash; gtfs_tripify 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Additional methods" href="additional_methods.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> gtfs_tripify
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Data analysis demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gtfs_tripify</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Data analysis demo</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/data_analysis_demo.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="data-analysis-demo">
+<h1>Data analysis demo<a class="headerlink" href="#data-analysis-demo" title="Permalink to this headline">¶</a></h1>
+<p>This page is a demo analysis of a day of 7 train arrival times from June
+1 2019, using data from the <a class="reference external" href="http://web.mta.info/developers/data/archives.html">MTA GTFS-RT
+archive</a> processed
+using <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code>. <strong>This tutorial will show you how to work with
+arrival logbooks</strong>.</p>
+<p>Although not required, it is helpful to have already skimmed the
+<a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">Tutorial</a>,
+which demonstrates how logbooks are built. For the purposes of this demo
+we will use a dataset we prepared in advance.</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">float_format</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{:.0f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;fivethirtyeight&#39;</span><span class="p">)</span>
+<span class="o">%</span><span class="k">matplotlib</span> inline
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+</pre></div>
+</div>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;https://raw.githubusercontent.com/ResidentMario/gtfs-tripify-demo-data/master/7_trains.csv&#39;</span><span class="p">)</span>
+<span class="n">trains</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+</div>
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>trip_id</th>
+      <th>route_id</th>
+      <th>action</th>
+      <th>minimum_time</th>
+      <th>maximum_time</th>
+      <th>stop_id</th>
+      <th>latest_information_time</th>
+      <th>stop_name</th>
+      <th>unique_trip_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>042200_7..N</td>
+      <td>7</td>
+      <td>STOPPED_OR_SKIPPED</td>
+      <td>1559386833</td>
+      <td>1559386852</td>
+      <td>726N</td>
+      <td>1559386852</td>
+      <td>34 St - 11 Av</td>
+      <td>24746f24-b4a2-11e9-9912-8c8590adc94b</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>042200_7..N</td>
+      <td>7</td>
+      <td>STOPPED_OR_SKIPPED</td>
+      <td>1559387014</td>
+      <td>1559387034</td>
+      <td>725N</td>
+      <td>1559387034</td>
+      <td>Times Sq - 42 St</td>
+      <td>24746f24-b4a2-11e9-9912-8c8590adc94b</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>042200_7..N</td>
+      <td>7</td>
+      <td>STOPPED_OR_SKIPPED</td>
+      <td>1559387124</td>
+      <td>1559387144</td>
+      <td>724N</td>
+      <td>1559387144</td>
+      <td>5 Av</td>
+      <td>24746f24-b4a2-11e9-9912-8c8590adc94b</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>042200_7..N</td>
+      <td>7</td>
+      <td>STOPPED_OR_SKIPPED</td>
+      <td>1559387214</td>
+      <td>1559387234</td>
+      <td>723N</td>
+      <td>1559387234</td>
+      <td>Grand Central - 42 St</td>
+      <td>24746f24-b4a2-11e9-9912-8c8590adc94b</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>042200_7..N</td>
+      <td>7</td>
+      <td>STOPPED_OR_SKIPPED</td>
+      <td>1559387394</td>
+      <td>1559387414</td>
+      <td>721N</td>
+      <td>1559387414</td>
+      <td>Vernon Blvd - Jackson Av</td>
+      <td>24746f24-b4a2-11e9-9912-8c8590adc94b</td>
+    </tr>
+  </tbody>
+</table>
+</div><div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span><span class="o">.</span><span class="n">stop_name</span><span class="o">.</span><span class="n">value_counts</span><span class="p">(</span><span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+    <span class="n">color</span><span class="o">=</span><span class="s1">&#39;steelblue&#39;</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;7 Train Stops Made by Station&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x1161105c0</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_3_1.png" src="_images/data_analysis_demo_3_1.png" />
+<p>The 7 train is split into a local service which makes all stops and an
+express service which makes an expedited set of stops during rush hours
+only. The rush hour trains skipped the second of stops in this dataset:
+33 Street, 46 Street, and so on. Looking at this chart, we can see that
+there were around 275 or so total 7 train trips that day. About half of
+those trips ran as local trains and half ran as express trains.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">nan</span></code> values here are for stop IDs with no corresponding stop name
+in the GTFS record. This seems like a data error on the MTA’s part;
+maybe these stops are for the train yard?</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span><span class="o">.</span><span class="n">stop_id</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">stop_id</span><span class="p">:</span> <span class="s1">&#39;Northbound&#39;</span> <span class="k">if</span> <span class="s1">&#39;N&#39;</span> <span class="ow">in</span> <span class="n">stop_id</span> <span class="k">else</span> <span class="s1">&#39;Southbound&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;7 Train Stops Made by Service Direction&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x119bf6940</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_5_1.png" src="_images/data_analysis_demo_5_1.png" />
+<p>The 7 train made over 3500 southbound stops that day, but only a touch
+over 2100 northbound ones. Even though the 7 train is primarily
+east-west, the MTA codes all of its train lines as north-west. In this
+case “north” means “west” (train trips starting in Flushing, Queens and
+ending at Hudson Yards in Manhattan) and “south” means “east” (train
+trips starting at Hudson Yards and ending in Flushing, Queens).</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;unique_trip_id&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">route_id</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">7</span>     <span class="mi">332</span>
+<span class="mi">7</span><span class="n">X</span>      <span class="mi">3</span>
+<span class="n">Name</span><span class="p">:</span> <span class="n">route_id</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">int64</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">route_id</span></code> identifies the headsign a train is running under. Just
+three of the trains that ran that day were identified as <code class="docutils literal notranslate"><span class="pre">7X</span></code>, e.g. “7
+express” trains. Most of the trains that ran the express service were
+identified as regular <code class="docutils literal notranslate"><span class="pre">7</span></code> trains in the data stream.</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span><span class="o">.</span><span class="n">action</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;7 Train Stops Made by Type&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x116137128</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_9_1.png" src="_images/data_analysis_demo_9_1.png" />
+<p>It may seem strange that this record contains only
+<code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code> records, which tell us that a train passed
+through a station, and no <code class="docutils literal notranslate"><span class="pre">STOPPED_AT</span></code> records, which tell us that a
+train stopped at a station for sure. However, this is just a consequence
+of how the MTA codes their systems. Messages about the 7 train always
+jump straight from “en route to this station” to “en route to the next
+station”. It’s almost completely safe to consider a
+<code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code> record as evidence that the train actually
+stopped at that station; a train skipping a scheduled stop can only
+occur due to operator error.</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">trains</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;unique_trip_id&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span><span class="o">.</span><span class="n">n</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;steelblue&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;7 Train Trips by Length&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x112ed5780</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_11_1.png" src="_images/data_analysis_demo_11_1.png" />
+<p>If we look at the trips that were made based on their length, we can
+clearly see two peaks: one at 22, the number of stops typically made by
+local trains, and one at 12, the number of stops typically made by
+express trains.</p>
+<p>Trains may make fewer or more stops per trip due to delays or incidents
+forcing trains to skip certain stops. This is likely the reason for the
+relatively large number of train that made 11 stops that day, for
+example, instead of 12.</p>
+<p>However, because of how the MTA codes its systems, it’s also possible
+for a train to seem to make fewer or more stops than it actually made
+due to <strong>trip fragmentation</strong>. This occurs when the MTA scrubs a
+schedule whose estimates have become inaccurate, usually due to delays,
+and inserts a new schedule with a new <code class="docutils literal notranslate"><span class="pre">trip_id</span></code> instead. Since it’s
+not always possible to detect when this has happened, and the result is
+that a single train trip will get cut into two (or more!) pieces.</p>
+<p>For example, consider the 20 or so case where a train seemed to make
+only 1 stop. This occurs when the MTA scrubs a schedule for a train that
+is currently in a station, assigns a new one, and then scrubs <em>that</em>
+schedule as well.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">gt.ops.cut_cancellations</span></code> method we ran earlier removes stops
+that are actually artifacts of trip fragmentation. This is discussed in
+more detail in the section of the documentation on <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/additional_methods.html">Additional
+methods</a>.
+But due to the way the data is formatted, it’s often not possible to
+patch over train trips that are split into several different segments.</p>
+<p>The amount of trip fragmentation varies from line to line, and is
+especially bad on days in which trains suffer heavy dealys. Since every
+7 train begins and ends its service at either Flushing – Main Street or
+34 St - 11 Avenue, depending on the heading (northbound or southbound)
+of the train, checking fragmentation is relatively easy:</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">check_if_trip_is_complete</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="n">first_and_last</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">stop_name</span>
+    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">first_and_last</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">stop_name</span><span class="p">))</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;34 St - 11 Av&#39;</span><span class="p">,</span> <span class="s1">&#39;Flushing - Main St&#39;</span><span class="p">]</span>
+
+<span class="p">(</span><span class="n">trains</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;unique_trip_id&#39;</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">check_if_trip_is_complete</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x116738c18</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_13_1.png" src="_images/data_analysis_demo_13_1.png" />
+<p>Two thirds of the train trips included in this dataset are
+complete—e.g. they record all of the stops the train took, from the
+first stop all the way to the last. The remaining one-third of stops are
+incomplete; they record trips that have been split into two or more
+segments.</p>
+<p>A schedule getting scrubbed almost always means that the train is
+experiencing significant delays. By looking at what station the train
+was sitting in or going to right before the schedule was scrubbed, we
+can see which stops trains tended to get delayed at.</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_problematic_station</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="n">first_and_last</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">stop_name</span>
+    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">first_and_last</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">stop_name</span><span class="p">))</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;34 St - 11 Av&#39;</span><span class="p">,</span> <span class="s1">&#39;Flushing - Main St&#39;</span><span class="p">]:</span>
+        <span class="n">last_station</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">stop_name</span>
+        <span class="k">if</span> <span class="n">last_station</span> <span class="o">==</span> <span class="s1">&#39;Flushing - Main St&#39;</span> <span class="ow">or</span> <span class="n">last_station</span> <span class="o">==</span> <span class="s1">&#39;34 St - 11 Av&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">stop_name</span>
+
+<span class="p">(</span><span class="n">trains</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;unique_trip_id&#39;</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">get_problematic_station</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;steelblue&#39;</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;7 Train Delays by Station&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">_subplots</span><span class="o">.</span><span class="n">AxesSubplot</span> <span class="n">at</span> <span class="mh">0x1161dc630</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_15_1.png" src="_images/data_analysis_demo_15_1.png" />
+<p>It looks like many of the delays that day occurred near Queensbororo
+Plaza.</p>
+<p>The Ibry chart is a structured visualization of train stops across time
+and station that was famously applied to Paris-Lyon train line in
+France, and which later appeared on the cover of Edward Tufte’s seminal
+book on data visualization, “The Visual Display of Quantitative
+Information”. The code that follows builds two such charts for our 7
+train data—one for northbound (Flushing to Hudson Yards) trips, and one
+for southbound (Hudson Yard to Flushing) trips.</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">set_style</span><span class="p">(</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+
+<span class="n">stop_sequence</span> <span class="o">=</span> <span class="p">[</span>
+ <span class="s1">&#39;Flushing - Main St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Mets - Willets Point&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;111 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;103 St - Corona Plaza&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Junction Blvd&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;90 St - Elmhurst Av&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;82 St - Jackson Hts&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;74 St - Broadway&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;69 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Woodside - 61 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;52 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;46 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;40 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;33 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Queensboro Plaza&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Court Sq&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Hunters Point Av&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Vernon Blvd - Jackson Av&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Grand Central - 42 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;5 Av&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Times Sq - 42 St&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;34 St - 11 Av&#39;</span>
+<span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">plot_trains</span><span class="p">(</span><span class="n">trains</span><span class="p">,</span> <span class="n">title</span><span class="p">):</span>
+    <span class="n">estimated_times</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">min_timestamp</span><span class="p">,</span> <span class="n">max_timestamp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">trains</span><span class="o">.</span><span class="n">minimum_time</span><span class="p">,</span> <span class="n">trains</span><span class="o">.</span><span class="n">maximum_time</span><span class="p">):</span>
+        <span class="n">estimated_times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">min_timestamp</span> <span class="o">+</span> <span class="p">(</span><span class="n">max_timestamp</span> <span class="o">-</span> <span class="n">min_timestamp</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="p">)</span>
+
+    <span class="n">timetable</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
+        <span class="n">trains</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">estimated_arrival_time</span><span class="o">=</span><span class="n">estimated_times</span><span class="p">),</span>
+        <span class="n">index</span><span class="o">=</span><span class="s1">&#39;unique_trip_id&#39;</span><span class="p">,</span>
+        <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;stop_name&#39;</span><span class="p">,</span>
+        <span class="n">values</span><span class="o">=</span><span class="s1">&#39;minimum_time&#39;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">stop_sequence</span><span class="p">)</span>
+
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">timetable</span><span class="o">.</span><span class="n">rename_axis</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">legend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">24</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">21</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="mi">0</span> <span class="p">,</span> <span class="mi">22</span><span class="p">],</span> <span class="p">[</span><span class="n">stop_sequence</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stop_sequence</span><span class="p">[</span><span class="mi">21</span><span class="p">]],</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">([],</span> <span class="p">[])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">despine</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Time on the left axis, and stop number on the bottom:</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">northbound_trains</span> <span class="o">=</span> <span class="n">trains</span><span class="p">[</span><span class="n">trains</span><span class="o">.</span><span class="n">stop_id</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="s1">&#39;N&#39;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">)]</span>
+<span class="n">plot_trains</span><span class="p">(</span><span class="n">northbound_trains</span><span class="p">,</span> <span class="s1">&#39;Northbound 7 Train Service, June 1 2019&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_19_0.png" src="_images/data_analysis_demo_19_0.png" />
+<p>All but one of the northbound 7 trains ran express that day! This
+explains why there were so many trips that were 12 stops in length, but
+which had the local service <code class="docutils literal notranslate"><span class="pre">7</span></code> headsign instead of the express
+service <code class="docutils literal notranslate"><span class="pre">7X</span></code> headsign.</p>
+<p>Most trips are neatly sequential, as you would expect. Service looked
+very smooth that day overall; there were some delays, demarkated by
+increasing slopes in the lines, but the trains were mostly able to
+maintain a consistent headway (time between train arrivals) throughout
+the day. We can also see how there were far fewer trains running in the
+early morning hours e.g. between midnight and around 7 AM, then there
+were later in the day. The number of trains was otherwise pretty
+consistent across all times.</p>
+<p>We can see some data and library artifacts in this plot:</p>
+<ul class="simple">
+<li><p>Trains seem to cross over one another going into the last stop in the
+line, Flushing - Main Street. This occurs because trains are staying
+in the data stream after arriving at the last stop, which throws off
+the accuracy of our naive estimate (which is just
+<code class="docutils literal notranslate"><span class="pre">minimum_time</span> <span class="pre">+</span> <span class="pre">(maximum_time</span> <span class="pre">-</span> <span class="pre">minimum_time)</span> <span class="pre">/</span> <span class="pre">2</span></code>).</p></li>
+<li><p>Some trains seem to jump back in time on arrival to their final
+station; this is a data error that I’m still investigating.</p></li>
+<li><p>Some train trips are discontiguous, indicating places where the
+service schedule got scrubbed and rebuilt.</p></li>
+<li><p>Trains are sometimes added to the feed one-at-a-time, sometimes in
+groups. Some of the trains were added to the feed seconds before they
+set off, causing us to miss their first stop, 34 St - 11 Av,
+completely.</p></li>
+</ul>
+<p>If we look at southbound 7 train service, we see a different picture:</p>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">southbound_trains</span> <span class="o">=</span> <span class="n">trains</span><span class="p">[</span><span class="n">trains</span><span class="o">.</span><span class="n">stop_id</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="s1">&#39;S&#39;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">)]</span>
+<span class="n">plot_trains</span><span class="p">(</span><span class="n">southbound_trains</span><span class="p">,</span> <span class="s1">&#39;Southbound 7 Train Service, June 1 2019&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/data_analysis_demo_21_0.png" src="_images/data_analysis_demo_21_0.png" />
+<p>In contrast to the northbound 7 trains, all of the southbound 7 trains
+that day made all local stops. This makes sense, as it would impossible
+otherwise to access any of the stations that the northbound trains
+skipped.</p>
+<p>The Flushing - Main Street dispatch, like the 34 St - 11 Av dispatch,
+sometimes adds multiple trains at once to the feed. They also add trains
+seconds before they leave the station, but seem to do so more rarely
+than the 34 St - 11 Av dispatch does.</p>
+<p>For the most part, we see the same smooth headway pattern we saw with
+the northbound trains, indicating that this was a pretty good service
+day for the southbound 7 trains as well.</p>
+<p>That concludes this short demo. For more example applications of this
+data stream, see the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/further_reading.html">Further
+reading</a>.
+To learn how to roll a dataset like this yourself, see the
+<a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">Tutorial</a>
+section.</p>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="additional_methods.html" class="btn btn-neutral float-right" title="Additional methods" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="tutorial.html" class="btn btn-neutral float-left" title="Tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Aleksey Bilogur
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
