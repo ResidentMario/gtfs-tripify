@@ -52,4 +52,6 @@ mv ./docs/_build/html/* ./
 rm -rf docs
 ```
 
+The data analysis demo is unique in that it is notebook-based. To update this page, update and rerun the `data_analysis_demo.ipynb` file in the `notebooks` folder, then run `jupyter nbconvert --to rst data_analysis_demo.ipynb`, then move the resultant ``data_analysis_demo.rst`` file and ``data_analysis_demo_files`` folder to the ``docs`` folder, *before* running the update procedure above.
+
 So to update the documentation, edit the `.rst` files in the `docs` folder, then run `make html` there from the command line (optionally also running `make clean` beforehand). Then follow the procedure linked above to make these changes live.
