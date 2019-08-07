@@ -7,6 +7,6 @@ install:
   - pip install -r requirements.txt
   - pip install .
 script:
-  - cd tests; pytest tests/core_tests.py
-  - cd tests; pytest tests/util_tests.py
-  - cd tests; pytest tests/io_tests.py
+  - cd tests; pytest core_tests.py
+  - cd tests; pytest util_tests.py
+  - cd tests; pytest io_tests.py
