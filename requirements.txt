@@ -1,0 +1,6 @@
+# used for the CI build environment
+numpy>=1.14.2
+pandas>=0.22.0
+requests>=2.18.4
+gtfs-realtime-bindings>=0.0.6
+pytest>=5.0.1

@@ -35,7 +35,7 @@ Note that `gtfs_tripify` is currently Python 3.6+ only.
 pytest core_tests.py
 ```
 
-Any pull requests to this repo are expected to pass all tests, and to add tests for any new features or changes in behavior to the relevant test file(s).
+Any pull requests to this repo are expected to pass all tests, and to add tests for any new features or changes in behavior to the relevant test file(s). Tests are run via continuous integration on every pull request against the repo.
 
 ## Documentation
 
