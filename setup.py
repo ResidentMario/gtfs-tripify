@@ -11,7 +11,7 @@ setup(
     },
     entry_points='''
         [console_scripts]
-        airscooter=airscooter.cli:cli
+        gtfs_tripify=gtfs_tripify.cli:cli
     ''',
     description='Turn GTFS-RT transit updates into historical arrival data.',
     author='Aleksey Bilogur',

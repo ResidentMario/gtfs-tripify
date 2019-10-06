@@ -621,10 +621,20 @@ def to_csv(logbook, filename, output=False):
         log = logbook[unique_trip_id].assign(unique_trip_id=unique_trip_id)
         logs.append(log)
 
-    if output:
-        return pd.concat(logs)
+    if len(logs) == 0:
+        df = pd.DataFrame(
+            columns=[
+                'trip_id', 'route_id', 'action', 'minimum_time', 'maximum_time', 'stop_id',
+                'latest_information_time', 'unique_trip'
+            ]
+        )
     else:
-        return pd.concat(logs).to_csv(filename, index=False)
+        df = pd.concat(logs)
+
+    if output:
+        return df
+    else:
+        return df.to_csv(filename, index=False)
 
 
 def from_csv(filename):
