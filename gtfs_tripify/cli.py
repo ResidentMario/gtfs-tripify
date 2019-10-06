@@ -105,12 +105,12 @@ def merge(l_fp_1, l_fp_2, outpath, no_clean, include_timestamp_log, include_erro
     _, l1_ext = os.path.splitext(l1)
     _, l2_ext = os.path.splitext(l2)
 
-    if l1_ext.lower() == 'csv':
+    if l1_ext.lower() == '.csv':
         l1 = gt.ops.from_csv(l1)
     else:  # l1_ext.lower() == 'gtfs'
         raise NotImplementedError
     
-    if l2_ext.lower() == 'csv':
+    if l2_ext.lower() == '.csv':
         l2 = gt.ops.from_csv(l2)
     else:  # l2_ext.lower() == 'gtfs'
         raise NotImplementedError
