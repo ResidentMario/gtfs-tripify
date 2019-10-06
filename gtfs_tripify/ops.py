@@ -352,7 +352,6 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
     # pick the one which appears in the first timestamp included in the right time slice
     # and run _join_trip_logs on that matched object
     # if no such trip exists, this is a cancellation, so perform the requisite work
-
     for unique_trip_id_right in right:
         right_trip = right[unique_trip_id_right]
         trip_id = right_trip.trip_id.iloc[0]
@@ -364,7 +363,7 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
 
         # if there is a match we need to do more work
         elif (trip_id in left_map and
-              right_timestamps[unique_trip_id_right][0] == first_right_timestamp):
+            right_timestamps[unique_trip_id_right][0] == first_right_timestamp):
             assert right_map[trip_id] is None
             right_map[trip_id] = right[unique_trip_id_right]
 
@@ -384,7 +383,6 @@ def join_logbooks(left, left_timestamps, right, right_timestamps):
         # for trips we did not find a match for, finalize as a cancellation
         else:
             left[unique_trip_id_left] = finish_trip(left[unique_trip_id_left], first_right_timestamp)
-
 
     # for trips we did not find a a match for
     # finalize trips that were incomplete in the left and also didn't appear in the right

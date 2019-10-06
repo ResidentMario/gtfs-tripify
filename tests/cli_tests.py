@@ -1,4 +1,5 @@
 import unittest
+import pytest
 import os
 import warnings
 from click.testing import CliRunner
@@ -57,30 +58,30 @@ class TestMerge(unittest.TestCase):
         result = cli.invoke(gtfs_cli.logify, ['fixtures/', 'fixtures/', '--to', 'badformat'])
         assert result.exit_code != 0
     
-    # def test_valid(self):
-    #     cli = CliRunner()
-    #     fixtures_fp = os.getcwd().rstrip('/') + '/fixtures/'
-    #     l1 = fixtures_fp + 'stops1.csv'
-    #     l2 = fixtures_fp + 'stops2.csv'
+    # TODO: why does this test fail?
+    @pytest.mark.xfail
+    def test_valid(self):
+        cli = CliRunner()
+        fixtures_fp = os.getcwd().rstrip('/') + '/fixtures/'
+        l1 = fixtures_fp + 'stops1.csv'
+        l2 = fixtures_fp + 'stops2.csv'
 
-    #     with cli.isolated_filesystem():
-    #         with warnings.catch_warnings():
-    #             warnings.simplefilter('ignore')
-    #             cli.invoke(
-    #                 gtfs_cli.logify,
-    #                 [fixtures_fp, 'stops1.csv', '--no-clean', '--to', 'csv',
-    #                  '--include-timestamp-log']
-    #             )
-    #             cli.invoke(
-    #                 gtfs_cli.logify,
-    #                 [fixtures_fp, 'stops2.csv', '--no-clean', '--to', 'csv',
-    #                  '--include-timestamp-log']
-    #             )
-    #             # TODO: this method requires more data to work...need more fixtures!
-    #             l1 = os.getcwd().rstrip('/') + '/stops1.csv'
-    #             l2 = os.getcwd().rstrip('/') + '/stops2.csv'
-    #             cli.invoke(
-    #                 gtfs_cli.merge, [l1, l2, '--no-clean', '--to', 'csv']
-    #             )
-
-    #             assert os.path.exists(os.getcwd().rstrip('/') + '/stops.csv')
+        with cli.isolated_filesystem():
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                cli.invoke(
+                    gtfs_cli.logify,
+                    [fixtures_fp + 'test_group_1', 'stops1.csv', '--no-clean', '--to', 'csv',
+                     '--include-timestamp-log']
+                )
+                cli.invoke(
+                    gtfs_cli.logify,
+                    [fixtures_fp + 'test_group_2', 'stops2.csv', '--no-clean', '--to', 'csv',
+                     '--include-timestamp-log']
+                )
+                l1 = os.getcwd().rstrip('/') + '/stops1.csv'
+                l2 = os.getcwd().rstrip('/') + '/stops2.csv'
+                cli.invoke(
+                    gtfs_cli.merge, [l1, l2, 'stops.csv' '--no-clean', '--to', 'csv']
+                )
+                assert os.path.exists(os.getcwd().rstrip('/') + '/stops.csv')

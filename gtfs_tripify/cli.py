@@ -41,6 +41,10 @@ def logify(inpath, outpath, no_clean, include_timestamp_log, include_error_log, 
 
     messages = []
     for filename in sorted(os.listdir(inpath)):
+        path = inpath.rstrip('/') + '/' + filename
+        if os.path.isdir(path):
+            continue
+
         with open(inpath.rstrip('/') + '/' + filename, 'rb') as f:
             messages.append(f.read())
 
