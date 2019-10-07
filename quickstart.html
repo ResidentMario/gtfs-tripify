@@ -154,6 +154,8 @@
             
   <div class="section" id="quickstart">
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h1>
+<p>In this section we’ll build a small sample train arrivals dataset using
+the <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> command-line tool.</p>
 <p>Begin by running the following to install this package on your local
 machine:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install gtfs_tripify
@@ -161,40 +163,22 @@ machine:</p>
 </div>
 <p>First we need to prepare our GTFS-Realtime feeds of interest.
 GTFS-Realtime is a highly compressed binary format encoded using a
-Google data encoding known as Protobuf.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load GTFS-Realtime feeds.</span>
-<span class="c1"># For this example we will use publicly archived MTA data.</span>
-<span class="kn">import</span> <span class="nn">requests</span>
-<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
-<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
-<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
-
-<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+Google data encoding known as Protobuf. For the purposes of this demo,
+we’ll use some example data from the MTA archive.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir messages<span class="p">;</span> <span class="nb">cd</span> messages
+curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31
+curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36
+curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41
 </pre></div>
 </div>
-<p>We now have the raw bytes for a sequence of GTFS-Realtime feed updates.
-Each update represents the state of the same wired-up slice of a transit
-network at a different but consecutive point in time.</p>
-<p>This is where <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> comes in:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
-<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+<p>Each of these updates is a snapshot of a piece of the MTA subway system at
+a certain timestamp. By analyzing these snapshots for differences over time,
+it is possible to reconstruct all of the stops these trains made.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gtfs_tripify logify gtfs_messages/ stops.csv --to csv --no-clean
 </pre></div>
 </div>
-<p>Now we have a <code class="docutils literal notranslate"><span class="pre">logbook</span></code>. If we inspect it we see that it is a <code class="docutils literal notranslate"><span class="pre">dict</span></code>
-with the following format:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-    <span class="s1">&#39;87a19e7a-66dd-11e9-b1fe-8c8590adc94b&#39;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span> <span class="nb">object</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="s1">&#39;87a19db4-66dd-11e9-a0e0-8c8590adc94b&#39;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span> <span class="nb">object</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="o">...</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p>Each entry in the <code class="docutils literal notranslate"><span class="pre">logbook</span></code> is a <code class="docutils literal notranslate"><span class="pre">log</span></code>. Each log provides
-information about a single train trip in the system.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">print</span><span class="p">(</span><span class="n">logbook</span><span class="p">[</span><span class="s1">&#39;87a19e7a-66dd-11e9-b1fe-8c8590adc94b&#39;</span><span class="p">])</span>
-</pre></div>
-</div>
-<p>This looks something like this:</p>
+<p>This outputs a <code class="docutils literal notranslate"><span class="pre">logbook</span></code> of individal trip <code class="docutils literal notranslate"><span class="pre">logs</span></code>. This looks something
+like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trip_id</span><span class="p">,</span><span class="n">route_id</span><span class="p">,</span><span class="n">action</span><span class="p">,</span><span class="n">minimum_time</span><span class="p">,</span><span class="n">maximum_time</span><span class="p">,</span><span class="n">stop_id</span><span class="p">,</span><span class="n">latest_information_time</span><span class="p">,</span><span class="n">unique_trip_id</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440299.0</span><span class="p">,</span><span class="mf">1559440695.0</span><span class="p">,</span><span class="mi">726</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440315</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440846.0</span><span class="p">,</span><span class="mf">1559440860.0</span><span class="p">,</span><span class="mi">725</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440860</span>
@@ -217,8 +201,10 @@ information about a single train trip in the system.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">maximum_time</span></code>: The maximum time at which the train pulled out of the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. Also a Unix timestamp.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">latest_information_time</span></code>: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.</p></li>
 </ul>
-<p>For a more thorough introduction to generating this data yourself, see the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">Tutorial</a> section.
-For a demonstratory analysis of one day’s worth of data, see the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html">Data analysis demo</a>.</p>
+<p>That concludes this brisk introduction to the <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> library. For a more detailed
+demonstration of <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> features using the Python library, see see the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">Tutorial</a>
+section. For a demonstratory analysis of one day’s worth of data, see the section
+<a class="reference external" href="https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html">Data analysis demo</a>.</p>
 </div>
 
 
