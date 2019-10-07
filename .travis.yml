@@ -10,3 +10,4 @@ script:
   - cd tests; pytest core_tests.py
   - cd tests; pytest util_tests.py
   - cd tests; pytest io_tests.py
+  - cd tests; pytest cli_tests.py
