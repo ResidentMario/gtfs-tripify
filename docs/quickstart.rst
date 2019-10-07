@@ -1,6 +1,9 @@
 Quickstart
 ==========
 
+In this section we'll build a small sample train arrivals dataset using
+the ``gtfs_tripify`` command-line tool.
+
 Begin by running the following to install this package on your local
 machine:
 
@@ -10,49 +13,26 @@ machine:
 
 First we need to prepare our GTFS-Realtime feeds of interest.
 GTFS-Realtime is a highly compressed binary format encoded using a
-Google data encoding known as Protobuf.
+Google data encoding known as Protobuf. For the purposes of this demo,
+we'll use some example data from the MTA archive.
 
-.. code:: python
+.. code:: bash
 
-   # Load GTFS-Realtime feeds.
-   # For this example we will use publicly archived MTA data.
-   import requests
-   response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
-   response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
-   response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+    mkdir messages; cd messages
+    curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31
+    curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36
+    curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41
 
-   stream = [response1.content, response2.content, response3.content]
+Each of these updates is a snapshot of a piece of the MTA subway system at
+a certain timestamp. By analyzing these snapshots for differences over time,
+it is possible to reconstruct all of the stops these trains made.
 
-We now have the raw bytes for a sequence of GTFS-Realtime feed updates.
-Each update represents the state of the same wired-up slice of a transit
-network at a different but consecutive point in time.
+.. code:: bash
 
-This is where ``gtfs_tripify`` comes in:
+    gtfs_tripify logify gtfs_messages/ stops.csv --to csv --no-clean
 
-.. code:: python
-
-   import gtfs_tripify as gt
-   logbook, timestamps, parse_errors = gt.logify(stream)
-
-Now we have a ``logbook``. If we inspect it we see that it is a ``dict``
-with the following format:
-
-.. code:: python
-
-   {
-       '87a19e7a-66dd-11e9-b1fe-8c8590adc94b': <pandas.DataFrame object>,
-       '87a19db4-66dd-11e9-a0e0-8c8590adc94b': <pandas.DataFrame object>,
-       ...
-   }
-
-Each entry in the ``logbook`` is a ``log``. Each log provides
-information about a single train trip in the system.
-
-.. code:: python
-
-   print(logbook['87a19e7a-66dd-11e9-b1fe-8c8590adc94b'])
-
-This looks something like this:
+This outputs a ``logbook`` of individal trip ``logs``. This looks something
+like this:
 
 .. code:: python
 
@@ -79,8 +59,10 @@ This dataset has the following schema:
 
 .. _Unix timestamp: https://en.wikipedia.org/wiki/Unix_time
 
-For a more thorough introduction to generating this data yourself, see the `Tutorial`_ section.
-For a demonstratory analysis of one day's worth of data, see the section `Data analysis demo`_.
+That concludes this brisk introduction to the ``gtfs_tripify`` library. For a more detailed
+demonstration of ``gtfs_tripify`` features using the Python library, see see the `Tutorial`_
+section. For a demonstratory analysis of one day's worth of data, see the section
+`Data analysis demo`_.
 
 .. _Tutorial: https://residentmario.github.io/gtfs-tripify/tutorial.html
 .. _Data analysis demo: https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html
