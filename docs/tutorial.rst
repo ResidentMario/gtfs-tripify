@@ -3,6 +3,10 @@ Tutorial
 
 Interested in New York City transit? Want to learn more reasons why your particular train commute is good or bad? **This tutorial will show you how to roll your own daily MTA train arrival dataset using Python.** The result can then be used to explore questions about train service that schedule data alone couldn’t answer.
 
+This tutorial assumes you've already read the `Quickstart`_.
+
+.. _Quickstart: https://residentmario.github.io/gtfs-tripify/quickstart.html
+
 Building a daily roll-up
 ------------------------
 
@@ -66,27 +70,19 @@ This data is snapshot data in an encoded binary format known as a `Protocol buff
 
    pip install gtfs_tripify
 
-Navigate to that folder you dumped the files you are interested in, and run the following snippet of Python:
+Navigate to that folder you dumped the files you are interested in, and execute the following command line instruction:
 
-.. code:: python
+.. code:: bash
 
-   import gtfs_tripify as gt
-   import os
-
-   messages = []
-   for filename in sorted(os.listdir('.')):
-       if '.py' not in filename:
-           with open(filename, 'rb') as f:
-               messages.append(f.read())
-
-   logbook, _, _ = gt.logify(messages)
-   gt.ops.to_csv(logbook, 'logbook.csv')
-
-An easy way to run this is to copy paste this code into a ``run.py`` file and then run ``python run.py`` on your command line.
+    gtfs_tripify logify ./ stops.csv --to csv --no-clean
 
 Running this script you will probably send output to your terminal regarding non-fatal errors in the data stream, this should be safe to ignore.
 
-This script may take a few tens of minutes to finish running. Once it is done, you will be left with a ``logbook.csv`` file on your computer containing train arrival and departure data:
+This script may take a few tens of minutes to finish running. While processing the feeds, you will likely see many non-fatal warnings about data errors and printed to your terminal. These are dealt with automatically, and are safe to ignore for now; refer to the section `parse errors`_ for a reference on what they mean.
+
+.. _parse errors: https://residentmario.github.io/gtfs-tripify/parse_errors.html
+
+Successfully completely processing will write a fresh ``stops.csv`` file to your machine with an easy-to-read tabular rollup of your data:
 
 .. _Protocol buffer: https://developers.google.com/protocol-buffers/
 
@@ -103,20 +99,20 @@ This script may take a few tens of minutes to finish running. Once it is done, y
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441561.0,1559441591.0,718N,1559441591,3ac1c948-af61-11e9-909a-8c8590adc94b
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441942.0,1559441956.0,712N,1559441956,3ac1c948-af61-11e9-909a-8c8590adc94
 
-At this point you can jump into your favorite data analysis environment and start exploring!
+At this point you can jump into your favorite data analysis environment and start exploring this data!
 
 Building a larger dataset
 -------------------------
 
-This is a pretty simple example. Naturally, you may be wondering: can I get more data? The answer is yes!
+How big a dataset can you build? ``gtfs_tripify`` does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my (16 GB) machine for example, I can only process data one day at a time.
 
-The key limitation is memory. ``gtfs_tripify`` does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my machine for example, I can only process data one day at a time.
+To work around this limitation, build your datasets one time period at a time, then merge them together using the ``merge`` command. For example, suppose we've already built two logbooks with ``logify``, one for 7 trains that ran on July 1 2019 (``7_1_2019_7_stops.csv``) and one for 7 trains that ran on July 2 2019 (``7_2_2019_7_stops.csv``). To combine these two together run the following command:
 
-The `gt.ops.merge_logbooks` method is specifically designed to address this use case. To learn more, see the section `Additional methods`_.
+.. code:: bash
 
-.. _Additional methods: https://residentmario.github.io/gtfs-tripify/additional_methods.html
+    gtfs_tripify merge 7_1_2019_7_stops.csv 7_2_2019_7_stops.csv stops.csv --to csv --no-clean
 
-For example, the following script will build and save to disk an arrival dataset for all 7 trains on *both* July 1st and July 2nd 2019:
+Alternatively, you can run the following Python script (or modify it to your purposes), which does the same thing:
 
 .. code:: python
 
@@ -124,6 +120,7 @@ For example, the following script will build and save to disk an arrival dataset
    from zipfile import ZipFile
    import os
 
+   # Update this value with the path to the GTFS-RT rollup on your local machine.
    DOWNLOAD_URL = '~/Downloads/201906.zip'
 
    z = ZipFile(DOWNLOAD_URL)
@@ -131,29 +128,35 @@ For example, the following script will build and save to disk an arrival dataset
    z.extract('201906012.zip')
 
    messages = []
+   # filter out non-GTFS files
    for filename in sorted(os.listdir('.')):
        if '.py' not in filename and 'gtfs_7_' in filename:
            with open(filename, 'rb') as f:
                messages.append(f.read())
 
+   # build the logbooks
    first_logbook, first_logbook_timestamps, _ = gt.logify(messages[:len(messages) // 2])
    second_logbook, second_logbook_timestamps, _ = gt.logify(messages[len(messages) // 2:])
+
+   # merge the logbooks
    logbook = gt.ops.merge_logbooks(
        [(first_logbook, first_logbook_timestamps), (second_logbook, second_logbook_timestamps)],
        'logbook.csv'
    )
+
+   # save to disk
    gt.ops.to_csv(logbook, 'logbook.csv')
 
 
+To learn more, see the section `Additional methods`_.
 
+.. _Additional methods: https://residentmario.github.io/gtfs-tripify/additional_methods.html
 .. _Unix timestamp: https://en.wikipedia.org/wiki/Unix_time
-.. _gt.ops.merge_logbooks: https://github.com/ResidentMario/gtfs-tripify/blob/0d61adb7b8b819c7eddb0c409bb2f4b64697aa5f/gtfs_tripify/ops.py#L313
 
 Conclusion
 ----------
 
-That concludes this basic introduction to parsing MTA GTFS-RT data with ``gtfs_tripify``. To see the full potential of this data stream in action, consider check out the `NYC Subway Variability Calculator`_ built by the New York Times.
+That concludes this tutorial. The next section, `Data analysis demo`_, showcases this data in
+action.
 
-.. _reading this explanatory blog post: https://www.residentmar.io/2018/01/29/gtfs-tripify.html
-.. _heading over to the GitHub repo: https://github.com/ResidentMario/gtfs-tripify
-.. _NYC Subway Variability Calculator: https://www.nytimes.com/interactive/2019/07/08/upshot/nyc-subway-variability-calculator.html
+.. _Data analysis demo: https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html
