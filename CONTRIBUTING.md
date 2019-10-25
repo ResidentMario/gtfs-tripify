@@ -46,10 +46,10 @@ The website is automatically updated whenever the `gh-pages` branch on GitHub is
 ```sh
 git checkout gh-pages
 rm -rf *
-git checkout master -- docs/
+git checkout master -- docs/ gtfs_tripify/
 cd docs; make html; cd ..
 mv ./docs/_build/html/* ./
-rm -rf docs
+rm -rf docs/ gtfs_tripify/
 ```
 
 The data analysis demo is unique in that it is notebook-based. To update this page, update and rerun the `data_analysis_demo.ipynb` file in the `notebooks` folder, then run `jupyter nbconvert --to rst data_analysis_demo.ipynb`, then move the resultant ``data_analysis_demo.rst`` file and ``data_analysis_demo_files`` folder to the ``docs`` folder, *before* running the update procedure above.
