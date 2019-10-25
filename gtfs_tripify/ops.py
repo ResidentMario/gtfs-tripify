@@ -21,10 +21,34 @@ from gtfs_tripify.utils import synthesize_route, finish_trip
 
 def cut_cancellations(logbook):
     """
-    Heuristically cuts stops that almost certainly didn't happen do to trip cancellations. I 
-    refer to this as the "cut-cancellation" heuristic.
+    Removes reassigned stops from a logbook. Example usage:
 
-    Returns a minified logbook containing only trips that almost assuredly happened.
+    .. code:: python
+
+        import gtfs_tripify as gt
+        import requests
+
+        response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
+        response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
+        response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+        stream = [response1.content, response2.content, response3.content]
+
+        logbook, timestamps, parse_errors = gt.logify(stream)
+        gt.ops.cut_cancellations(logbook)
+
+    GTFS-Realtime messages from certain transit providers suffer from trip fragmentation:
+    trains may be reassigned IDs and schedules mid-trip. ``gtfs_tripify`` naively assumes that
+    trips that disappeared from the record in this way completed all of their remaining scheduled
+    stops, even though they didn't.
+    
+    This method removes those such stops in a logbook which almost assuredly did not happen using
+    a best-effort heuristic. ``cut_cancellations`` is robust if and only if transitioning from the
+    second-to-last stop to the last stop on the route takes more than ``$TIME_INTERVAL`` seconds,
+    where ``$TIME_INTERVAL`` is the distance between feed messages.
+    
+    If this constraint is violated, either because the interval between the last two stops in the
+    service is unusually short, or due to downtime in the underlying feed, some data will be
+    unfixably ambiguous and may be lost.
     """
     def cut_cancellations_log(log):
         # Immediately return if the log is empty.
@@ -60,9 +84,31 @@ def cut_cancellations(logbook):
 
 def discard_partial_logs(logbook):
     """
-    Discards logs which appear in the first or last message in the feed. These logs are extremely
-    likely to be partial because we do not get to "see" every single message corresponding with 
-    the trip, as some are outside our "viewing window".
+    Removes partial logs from a logbook. Example usage:
+
+    .. code:: python
+
+        import gtfs_tripify as gt
+        import requests
+
+        response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
+        response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
+        response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+        stream = [response1.content, response2.content, response3.content]
+
+        logbook, timestamps, parse_errors = gt.logify(stream)
+        logbook = gt.ops.discard_partial_logs(logbook)
+
+    Logbooks are constructed on a "time slice" of data. Trips that appear in the first or last
+    message included in the time slice are necessarily incomplete. These incomplete trips may be:
+
+    * Left as-is.
+    * Completed by merging this logbook with a time-contiguous one (using
+      ``gt.ops.merge_logbooks``)
+    * Partitioned out (using ``gt.ops.partition_on_incomplete``).
+    * Pruned from the logbook (using this method).
+
+    The best course of action is dependent on your use case.
     """
     trim = logbook.copy()
 
@@ -266,9 +312,27 @@ def drop_nonsequential_messages(updates):
 
 def partition_on_incomplete(logbook, timestamps):
     """
-    Partitions a logbook (and associated timestamps) into two parts: a logbook with complete
-    logs, and a logbook with log records. A log is incomplete if there is at least one station
-    outstanding, e.g. at least one station that the train is still EN_ROUTE_TO.
+    Partitions incomplete logs in a logbook into a separate logbook. Incomplete logs are logs
+    in the logbook for trips that were already in progress as of the first feed update included in
+    the parsed messages, or were still in progress as of the last feed update included in the
+    parsed messages.
+    
+    This operation is useful when merging logbooks. See also ``gt.ops.discard_partial_logs``.
+    Example usage:
+
+    .. code:: python
+
+        import gtfs_tripify as gt
+        import requests
+
+        response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
+        response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
+        response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+        stream = [response1.content, response2.content, response3.content]
+        logbook, timestamps, parse_errors = gt.logify(stream)
+
+        complete_logbook, complete_timestamps, incomplete_logbook, incompete_timestamps =\
+            gt.ops.partition_on_incomplete(logbook, timestamps)
     """
     complete_logbook = pd.DataFrame(columns=logbook.columns)
     complete_timestamps = dict()
@@ -289,9 +353,21 @@ def partition_on_incomplete(logbook, timestamps):
 
 def partition_on_route_id(logbook, timestamps):
     """
-    Partitions a logbook (and associated timestamps) into multiple separate logbooks based
-    on the route_id. This is useful for I/O; when you write to disk it makes sense to organize
-    your files based on route.
+    Partitioning a logbook on ``route_id``. Outputs a dict of logbooks keyed on route ID and a
+    dict of timestamps keyed on route ID. Example usage:
+
+    .. code:: python
+
+        import gtfs_tripify as gt
+        import requests
+
+        response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
+        response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
+        response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+        stream = [response1.content, response2.content, response3.content]
+        logbook, timestamps, parse_errors = gt.logify(stream)
+
+        route_logbooks, route_timestamps = gt.ops.partition_on_route_id(logbook, timestamps)
     """
     route_logbooks, route_timestamps = defaultdict(dict), defaultdict(dict)
 
@@ -312,8 +388,33 @@ def partition_on_route_id(logbook, timestamps):
 # to write something logical (from a UX perspective) otherwise.
 def merge_logbooks(logbook_tuples):
     """
-    Given a list of trip logbook data in the form [(logbook, logbook_timestamps), ...] in 
-    time-sort order, perform a merge.
+    Given a list of trip logbooks and their corresponding timestamp data, perform a merge
+    and return a combined logbook and the combined timestamps.
+
+    The input logbooks must be in time-contiguous order. In other words, the first logbook
+    should cover the time slice (t(1), ..., t(n)), the second the time slice
+    (t(n + 1), ..., t(n + m)), and so on.
+
+    Example usage:
+
+    .. code:: python
+    
+        import gtfs_tripify as gt
+        import requests
+
+        response1 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31')
+        response2 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36')
+        response3 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41')
+        response4 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46')
+        response5 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-51')
+        response6 = requests.get('https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46')
+
+        stream1 = [response1.content, response2.content, response3.content]
+        stream2 = [response4.content, response5.content, response6.content]
+        logbook1, timestamps1, parse_errors1 = gt.logify(stream1)
+        logbook2, timestamps2, parse_errors2 = gt.logify(stream2)
+
+        logbook, timestamps = gt.ops.merge([(logbook1, timestamps1), (logbook2, timestamps2)])
     """
     left = dict()
     left_timestamps = dict()
@@ -538,15 +639,17 @@ def parse_feed(bytes):
 
 def to_gtfs(logbook, filename, tz=None, output=False):
     """
-    Write a logbook into a GTFS stops.txt record. Some important things to keep in mind when 
-    using this method:
+    Write a logbook to a GTFS ``stops.txt`` record. This method should only be run on complete
+    logbooks (e.g., ones which you have already run ``gt.ops.cut_cancellations`` and
+    ``gt.ops.discard_partial_logs`` on), as the GTFS spec does not allow null values or
+    hypothetical stops in ``stops.txt``. For general use-cases, ``gt.ops.to_csv`` is preferable.
+
+    Some edge case behaviors to keep in mind:
 
     * If there is no known minimum_time for a stop, a time 15 seconds before the maximum_time
       will be imputed. GTFS does not allow for null values.
     * If there is no known maximum time for a stop, the stop will not be included in the file.
     * If the train is still en route to a stop, that stop will not be included in the file.
-
-    It's recommended you only use to_gtfs on complete logbooks.
     """
     rows = []
     tz = tz if tz is not None else pytz.timezone("US/Eastern")
@@ -613,6 +716,9 @@ def to_gtfs(logbook, filename, tz=None, output=False):
 def to_csv(logbook, filename, output=False):
     """
     Write a logbook to a CSV file.
+    
+    The output file is readable using an ordinary CSV reader, e.g. ``pandas.read_csv``.
+    Alternatively you may read it back into a logbook format using ``gt.ops.from_csv``.
     """
     logs = []
     for unique_trip_id in logbook:
@@ -637,7 +743,7 @@ def to_csv(logbook, filename, output=False):
 
 def from_csv(filename):
     """
-    Read a logbook from a CSV file.
+    Read a logbook from a CSV file (as written to by ``gt.ops.to_csv``).
     """
     g = pd.read_csv(filename).groupby('unique_trip_id')
     return {k: df.drop(columns='unique_trip_id') for k, df in g}

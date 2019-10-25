@@ -15,6 +15,6 @@ Most major transit municipalities in the United States publish realtime train (a
    quickstart.rst
    tutorial.rst
    data_analysis_demo.rst
-   additional_methods.rst
    parse_errors.rst
+   api_reference.rst
    further_reading.rst

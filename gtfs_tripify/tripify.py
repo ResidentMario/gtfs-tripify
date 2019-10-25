@@ -517,9 +517,25 @@ def collate(updates, include_alerts=False):
 
 def logify(updates):
     """
-    Given a list of feed updates, returns a logbook associated with each trip mentioned in those
-    feeds. Also returns the set of timestamps covered by the logbook. Output is the tuple 
-    (logbook, timestamps).
+    Builds a logbook.
+
+    A logbook is a dict of pandas DataFrames "logs", each of which contains all known information
+    about a specific trip. Logbooks are writeable to disk in a CSV (``gt.ops.to_csv``) or GTFS
+    (``gt.ops.to_gtfs``) format and contiguously mergeable (using ``gt.ops.merge_logbooks``).
+
+    For a further reference on logbooks, including a scheme definition and code samples, refer to
+    online documentation at https://residentmario.github.io/gtfs-tripify/index.html.
+
+    Input should be a list of byte objects corresponding with raw Protobuf messages. Also accepts
+    already-parsed dict objects, as would be returned by ``dictify``, a convenience for
+    testing.
+
+    Output is in the form of a (logbook, timestamps, parse_errors) tuple. ``logbook`` is the
+    resultant logbook. ``timestamps`` is a ``dict`` of logbook timestamps. These are required when
+    merging logbooks. ``parse_errors`` is a list of non-fatal errors (schema violations or data
+    corruption) discovered while building the logbook. For a reference on parse error types refer
+    to the corresponding section of the online documentation:
+    https://residentmario.github.io/gtfs-tripify/parse_errors.html.
     """
     # trivial case
     if updates == []:

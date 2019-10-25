@@ -74,13 +74,19 @@ Navigate to that folder you dumped the files you are interested in, and execute 
 
 .. code:: bash
 
-    gtfs_tripify logify ./ stops.csv --to csv --no-clean
-
-Running this script you will probably send output to your terminal regarding non-fatal errors in the data stream, this should be safe to ignore.
+    gtfs_tripify logify ./ stops.csv --to csv --clean
 
 This script may take a few tens of minutes to finish running. While processing the feeds, you will likely see many non-fatal warnings about data errors and printed to your terminal. These are dealt with automatically, and are safe to ignore for now; refer to the section `parse errors`_ for a reference on what they mean.
 
 .. _parse errors: https://residentmario.github.io/gtfs-tripify/parse_errors.html
+
+There is one small but important difference between this script execution and the one in the quickstart: the presence of the ``--clean`` flag. Setting this flag does two things.
+
+First, it removes incomplete trips from the logbook. Incomplete trips are trips that started before the first feed message or ended after the last feed message. We don't have enough data to tell when or where these started or ended&mdash;they are incomplete.
+
+Second, it removes trip cancellation stubs from the logbook. Trip cancellation stubs are artifact stops left over when the trip ID of a train is changed mid-route. It's impossible to know for sure when this occurs in all cases, due to the snapshot nature of the underlying data stream. ``gtfs_tripify`` uses a best-effort heuristic which is ~98% effective at detecting and removing these non-stops, **but may lose data near the last stop of the trip if the distance between updates is unusually long**.
+
+This creates the practical constraint that ``gtfs_tripify`` is only as reliable as the underlying feed. Feed downtimes which are more than a few minutes in length causes the quality of the data produced by ``gtfs_tripify`` to start to degrade.
 
 Successfully completely processing will write a fresh ``stops.csv`` file to your machine with an easy-to-read tabular rollup of your data:
 
@@ -99,18 +105,22 @@ Successfully completely processing will write a fresh ``stops.csv`` file to your
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441561.0,1559441591.0,718N,1559441591,3ac1c948-af61-11e9-909a-8c8590adc94b
    131750_7..N,7,STOPPED_OR_SKIPPED,1559441942.0,1559441956.0,712N,1559441956,3ac1c948-af61-11e9-909a-8c8590adc94
 
-At this point you can jump into your favorite data analysis environment and start exploring this data!
+At this point you can jump into your favorite data analysis environment and start exploring!
 
 Building a larger dataset
 -------------------------
 
 How big a dataset can you build? ``gtfs_tripify`` does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my (16 GB) machine for example, I can only process data one day at a time.
 
-To work around this limitation, build your datasets one time period at a time, then merge them together using the ``merge`` command. For example, suppose we've already built two logbooks with ``logify``, one for 7 trains that ran on July 1 2019 (``7_1_2019_7_stops.csv``) and one for 7 trains that ran on July 2 2019 (``7_2_2019_7_stops.csv``). To combine these two together run the following command:
+To work around this limitation, build your datasets one time period at a time, then merge them together using the ``merge`` command. For example, suppose we've already built two logbooks with ``logify``, one for 7 trains that ran on July 1 2019 (``7_1_2019_7_stops.csv``) and one for 7 trains that ran on July 2 2019 (``7_2_2019_7_stops.csv``).
+
+Note that these must be "dirty" logbooks, e.g. ones run with the ``--no-clean`` flag; we will handle discarding trips that fall outside of the combined time period in the merge step.
+
+Now run the following command:
 
 .. code:: bash
 
-    gtfs_tripify merge 7_1_2019_7_stops.csv 7_2_2019_7_stops.csv stops.csv --to csv --no-clean
+    gtfs_tripify merge 7_1_2019_7_stops.csv 7_2_2019_7_stops.csv stops.csv --to csv --clean
 
 Alternatively, you can run the following Python script (or modify it to your purposes), which does the same thing:
 
