@@ -1,0 +1,400 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>API Reference &mdash; gtfs_tripify 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Further reading" href="further_reading.html" />
+    <link rel="prev" title="Parse errors" href="parse_errors.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> gtfs_tripify
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_analysis_demo.html">Data analysis demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#data-cleaning">Data Cleaning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#merge-and-partition">Merge and Partition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-i-o">File I/O</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gtfs_tripify</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>API Reference</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/api_reference.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h1>
+<dl class="method">
+<dt id="gtfs_tripify.tripify.logify">
+<code class="sig-prename descclassname">tripify.</code><code class="sig-name descname">logify</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.tripify.logify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds a logbook.</p>
+<p>A logbook is a dict of pandas DataFrames “logs”, each of which contains all known information
+about a specific trip. Logbooks are writeable to disk in a CSV (<code class="docutils literal notranslate"><span class="pre">gt.ops.to_csv</span></code>) or GTFS
+(<code class="docutils literal notranslate"><span class="pre">gt.ops.to_gtfs</span></code>) format and contiguously mergeable (using <code class="docutils literal notranslate"><span class="pre">gt.ops.merge_logbooks</span></code>).</p>
+<p>For a further reference on logbooks, including a scheme definition and code samples, refer to
+online documentation at <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/index.html">https://residentmario.github.io/gtfs-tripify/index.html</a>.</p>
+<p>Input should be a list of byte objects corresponding with raw Protobuf messages. Also accepts
+already-parsed dict objects, as would be returned by <code class="docutils literal notranslate"><span class="pre">dictify</span></code>, a convenience for
+testing.</p>
+<p>Output is in the form of a (logbook, timestamps, parse_errors) tuple. <code class="docutils literal notranslate"><span class="pre">logbook</span></code> is the
+resultant logbook. <code class="docutils literal notranslate"><span class="pre">timestamps</span></code> is a <code class="docutils literal notranslate"><span class="pre">dict</span></code> of logbook timestamps. These are required when
+merging logbooks. <code class="docutils literal notranslate"><span class="pre">parse_errors</span></code> is a list of non-fatal errors (schema violations or data
+corruption) discovered while building the logbook. For a reference on parse error types refer
+to the corresponding section of the online documentation:
+<a class="reference external" href="https://residentmario.github.io/gtfs-tripify/parse_errors.html">https://residentmario.github.io/gtfs-tripify/parse_errors.html</a>.</p>
+</dd></dl>
+
+<div class="section" id="data-cleaning">
+<h2>Data Cleaning<a class="headerlink" href="#data-cleaning" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="gtfs_tripify.ops.discard_partial_logs">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">discard_partial_logs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.discard_partial_logs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes partial logs from a logbook. Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+<span class="n">logbook</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">discard_partial_logs</span><span class="p">(</span><span class="n">logbook</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Logbooks are constructed on a “time slice” of data. Trips that appear in the first or last
+message included in the time slice are necessarily incomplete. These incomplete trips may be:</p>
+<ul class="simple">
+<li><p>Left as-is.</p></li>
+<li><p>Completed by merging this logbook with a time-contiguous one (using
+<code class="docutils literal notranslate"><span class="pre">gt.ops.merge_logbooks</span></code>)</p></li>
+<li><p>Partitioned out (using <code class="docutils literal notranslate"><span class="pre">gt.ops.partition_on_incomplete</span></code>).</p></li>
+<li><p>Pruned from the logbook (using this method).</p></li>
+</ul>
+<p>The best course of action is dependent on your use case.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="gtfs_tripify.ops.cut_cancellations">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">cut_cancellations</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.cut_cancellations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes reassigned stops from a logbook. Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+<span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">cut_cancellations</span><span class="p">(</span><span class="n">logbook</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>GTFS-Realtime messages from certain transit providers suffer from trip fragmentation:
+trains may be reassigned IDs and schedules mid-trip. <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> naively assumes that
+trips that disappeared from the record in this way completed all of their remaining scheduled
+stops, even though they didn’t.</p>
+<p>This method removes those such stops in a logbook which almost assuredly did not happen using
+a best-effort heuristic. <code class="docutils literal notranslate"><span class="pre">cut_cancellations</span></code> is robust if and only if transitioning from the
+second-to-last stop to the last stop on the route takes more than <code class="docutils literal notranslate"><span class="pre">$TIME_INTERVAL</span></code> seconds,
+where <code class="docutils literal notranslate"><span class="pre">$TIME_INTERVAL</span></code> is the distance between feed messages.</p>
+<p>If this constraint is violated, either because the interval between the last two stops in the
+service is unusually short, or due to downtime in the underlying feed, some data will be
+unfixably ambiguous and may be lost.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="merge-and-partition">
+<h2>Merge and Partition<a class="headerlink" href="#merge-and-partition" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="gtfs_tripify.ops.merge_logbooks">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">merge_logbooks</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.merge_logbooks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a list of trip logbooks and their corresponding timestamp data, perform a merge
+and return a combined logbook and the combined timestamps.</p>
+<p>The input logbooks must be in time-contiguous order. In other words, the first logbook
+should cover the time slice (t(1), …, t(n)), the second the time slice
+(t(n + 1), …, t(n + m)), and so on.</p>
+<p>Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+<span class="n">response4</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46&#39;</span><span class="p">)</span>
+<span class="n">response5</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-51&#39;</span><span class="p">)</span>
+<span class="n">response6</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-46&#39;</span><span class="p">)</span>
+
+<span class="n">stream1</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+<span class="n">stream2</span> <span class="o">=</span> <span class="p">[</span><span class="n">response4</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response5</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response6</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+<span class="n">logbook1</span><span class="p">,</span> <span class="n">timestamps1</span><span class="p">,</span> <span class="n">parse_errors1</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream1</span><span class="p">)</span>
+<span class="n">logbook2</span><span class="p">,</span> <span class="n">timestamps2</span><span class="p">,</span> <span class="n">parse_errors2</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream2</span><span class="p">)</span>
+
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">merge</span><span class="p">([(</span><span class="n">logbook1</span><span class="p">,</span> <span class="n">timestamps1</span><span class="p">),</span> <span class="p">(</span><span class="n">logbook2</span><span class="p">,</span> <span class="n">timestamps2</span><span class="p">)])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="gtfs_tripify.ops.partition_on_incomplete">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">partition_on_incomplete</code><span class="sig-paren">(</span><em class="sig-param">timestamps</em><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.partition_on_incomplete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Partitions incomplete logs in a logbook into a separate logbook. Incomplete logs are logs
+in the logbook for trips that were already in progress as of the first feed update included in
+the parsed messages, or were still in progress as of the last feed update included in the
+parsed messages.</p>
+<p>This operation is useful when merging logbooks. See also <code class="docutils literal notranslate"><span class="pre">gt.ops.discard_partial_logs</span></code>.
+Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+
+<span class="n">complete_logbook</span><span class="p">,</span> <span class="n">complete_timestamps</span><span class="p">,</span> <span class="n">incomplete_logbook</span><span class="p">,</span> <span class="n">incompete_timestamps</span> <span class="o">=</span>            <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">partition_on_incomplete</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="gtfs_tripify.ops.partition_on_route_id">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">partition_on_route_id</code><span class="sig-paren">(</span><em class="sig-param">timestamps</em><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.partition_on_route_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Partitioning a logbook on <code class="docutils literal notranslate"><span class="pre">route_id</span></code>. Outputs a dict of logbooks keyed on route ID and a
+dict of timestamps keyed on route ID. Example usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="n">response1</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31&#39;</span><span class="p">)</span>
+<span class="n">response2</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36&#39;</span><span class="p">)</span>
+<span class="n">response3</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41&#39;</span><span class="p">)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">response1</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response2</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">response3</span><span class="o">.</span><span class="n">content</span><span class="p">]</span>
+<span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">,</span> <span class="n">parse_errors</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+
+<span class="n">route_logbooks</span><span class="p">,</span> <span class="n">route_timestamps</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">partition_on_route_id</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="n">timestamps</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="file-i-o">
+<h2>File I/O<a class="headerlink" href="#file-i-o" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="gtfs_tripify.ops.to_csv">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">to_csv</code><span class="sig-paren">(</span><em class="sig-param">filename</em>, <em class="sig-param">output=False</em><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.to_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a logbook to a CSV file.</p>
+<p>The output file is readable using an ordinary CSV reader, e.g. <code class="docutils literal notranslate"><span class="pre">pandas.read_csv</span></code>.
+Alternatively you may read it back into a logbook format using <code class="docutils literal notranslate"><span class="pre">gt.ops.from_csv</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="gtfs_tripify.ops.to_gtfs">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">to_gtfs</code><span class="sig-paren">(</span><em class="sig-param">filename</em>, <em class="sig-param">tz=None</em>, <em class="sig-param">output=False</em><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.to_gtfs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a logbook to a GTFS <code class="docutils literal notranslate"><span class="pre">stops.txt</span></code> record. This method should only be run on complete
+logbooks (e.g., ones which you have already run <code class="docutils literal notranslate"><span class="pre">gt.ops.cut_cancellations</span></code> and
+<code class="docutils literal notranslate"><span class="pre">gt.ops.discard_partial_logs</span></code> on), as the GTFS spec does not allow null values or
+hypothetical stops in <code class="docutils literal notranslate"><span class="pre">stops.txt</span></code>. For general use-cases, <code class="docutils literal notranslate"><span class="pre">gt.ops.to_csv</span></code> is preferable.</p>
+<p>Some edge case behaviors to keep in mind:</p>
+<ul class="simple">
+<li><p>If there is no known minimum_time for a stop, a time 15 seconds before the maximum_time
+will be imputed. GTFS does not allow for null values.</p></li>
+<li><p>If there is no known maximum time for a stop, the stop will not be included in the file.</p></li>
+<li><p>If the train is still en route to a stop, that stop will not be included in the file.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="method">
+<dt id="gtfs_tripify.ops.from_csv">
+<code class="sig-prename descclassname">ops.</code><code class="sig-name descname">from_csv</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gtfs_tripify.ops.from_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a logbook from a CSV file (as written to by <code class="docutils literal notranslate"><span class="pre">gt.ops.to_csv</span></code>).</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="further_reading.html" class="btn btn-neutral float-right" title="Further reading" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="parse_errors.html" class="btn btn-neutral float-left" title="Parse errors" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Aleksey Bilogur
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

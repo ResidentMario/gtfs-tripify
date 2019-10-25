@@ -90,8 +90,8 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="data_analysis_demo.html">Data analysis demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
 </ul>
 
@@ -160,6 +160,7 @@
   <div class="section" id="tutorial">
 <h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
 <p>Interested in New York City transit? Want to learn more reasons why your particular train commute is good or bad? <strong>This tutorial will show you how to roll your own daily MTA train arrival dataset using Python.</strong> The result can then be used to explore questions about train service that schedule data alone couldn’t answer.</p>
+<p>This tutorial assumes you’ve already read the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/quickstart.html">Quickstart</a>.</p>
 <div class="section" id="building-a-daily-roll-up">
 <h2>Building a daily roll-up<a class="headerlink" href="#building-a-daily-roll-up" title="Permalink to this headline">¶</a></h2>
 <p>To begin, visit the MTA GTFS-RT Archive at <a class="reference external" href="http://web.mta.info/developers/data/archives.html">http://web.mta.info/developers/data/archives.html</a>:</p>
@@ -198,23 +199,16 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install gtfs_tripify
 </pre></div>
 </div>
-<p>Navigate to that folder you dumped the files you are interested in, and run the following snippet of Python:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
-<span class="kn">import</span> <span class="nn">os</span>
-
-<span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)):</span>
-    <span class="k">if</span> <span class="s1">&#39;.py&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-
-<span class="n">logbook</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
-<span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="s1">&#39;logbook.csv&#39;</span><span class="p">)</span>
+<p>Navigate to that folder you dumped the files you are interested in, and execute the following command line instruction:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gtfs_tripify logify ./ stops.csv --to csv --clean
 </pre></div>
 </div>
-<p>An easy way to run this is to copy paste this code into a <code class="docutils literal notranslate"><span class="pre">run.py</span></code> file and then run <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">run.py</span></code> on your command line.</p>
-<p>Running this script you will probably send output to your terminal regarding non-fatal errors in the data stream, this should be safe to ignore.</p>
-<p>This script may take a few tens of minutes to finish running. Once it is done, you will be left with a <code class="docutils literal notranslate"><span class="pre">logbook.csv</span></code> file on your computer containing train arrival and departure data:</p>
+<p>This script may take a few tens of minutes to finish running. While processing the feeds, you will likely see many non-fatal warnings about data errors and printed to your terminal. These are dealt with automatically, and are safe to ignore for now; refer to the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/parse_errors.html">parse errors</a> for a reference on what they mean.</p>
+<p>There is one small but important difference between this script execution and the one in the quickstart: the presence of the <code class="docutils literal notranslate"><span class="pre">--clean</span></code> flag. Setting this flag does two things.</p>
+<p>First, it removes incomplete trips from the logbook. Incomplete trips are trips that started before the first feed message or ended after the last feed message. We don’t have enough data to tell when or where these started or ended&amp;mdash;they are incomplete.</p>
+<p>Second, it removes trip cancellation stubs from the logbook. Trip cancellation stubs are artifact stops left over when the trip ID of a train is changed mid-route. It’s impossible to know for sure when this occurs in all cases, due to the snapshot nature of the underlying data stream. <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> uses a best-effort heuristic which is ~98% effective at detecting and removing these non-stops, <strong>but may lose data near the last stop of the trip if the distance between updates is unusually long</strong>.</p>
+<p>This creates the practical constraint that <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> is only as reliable as the underlying feed. Feed downtimes which are more than a few minutes in length causes the quality of the data produced by <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> to start to degrade.</p>
+<p>Successfully completely processing will write a fresh <code class="docutils literal notranslate"><span class="pre">stops.csv</span></code> file to your machine with an easy-to-read tabular rollup of your data:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trip_id</span><span class="p">,</span><span class="n">route_id</span><span class="p">,</span><span class="n">action</span><span class="p">,</span><span class="n">minimum_time</span><span class="p">,</span><span class="n">maximum_time</span><span class="p">,</span><span class="n">stop_id</span><span class="p">,</span><span class="n">latest_information_time</span><span class="p">,</span><span class="n">unique_trip_id</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440299.0</span><span class="p">,</span><span class="mf">1559440695.0</span><span class="p">,</span><span class="mi">726</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440315</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440846.0</span><span class="p">,</span><span class="mf">1559440860.0</span><span class="p">,</span><span class="mi">725</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440860</span><span class="p">,</span><span class="mi">3</span><span class="n">ac1c948</span><span class="o">-</span><span class="n">af61</span><span class="o">-</span><span class="mf">11e9</span><span class="o">-</span><span class="mi">909</span><span class="n">a</span><span class="o">-</span><span class="mi">8</span><span class="n">c8590adc94b</span>
@@ -231,14 +225,19 @@
 </div>
 <div class="section" id="building-a-larger-dataset">
 <h2>Building a larger dataset<a class="headerlink" href="#building-a-larger-dataset" title="Permalink to this headline">¶</a></h2>
-<p>This is a pretty simple example. Naturally, you may be wondering: can I get more data? The answer is yes!</p>
-<p>The key limitation is memory. <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my machine for example, I can only process data one day at a time.</p>
-<p>The <cite>gt.ops.merge_logbooks</cite> method is specifically designed to address this use case. To learn more, see the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/additional_methods.html">Additional methods</a>.</p>
-<p>For example, the following script will build and save to disk an arrival dataset for all 7 trains on <em>both</em> July 1st and July 2nd 2019:</p>
+<p>How big a dataset can you build? <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> does all of its processing in-memory, so it can only consume as many messages as will fit in your computer’s RAM at once. On my (16 GB) machine for example, I can only process data one day at a time.</p>
+<p>To work around this limitation, build your datasets one time period at a time, then merge them together using the <code class="docutils literal notranslate"><span class="pre">merge</span></code> command. For example, suppose we’ve already built two logbooks with <code class="docutils literal notranslate"><span class="pre">logify</span></code>, one for 7 trains that ran on July 1 2019 (<code class="docutils literal notranslate"><span class="pre">7_1_2019_7_stops.csv</span></code>) and one for 7 trains that ran on July 2 2019 (<code class="docutils literal notranslate"><span class="pre">7_2_2019_7_stops.csv</span></code>).</p>
+<p>Note that these must be “dirty” logbooks, e.g. ones run with the <code class="docutils literal notranslate"><span class="pre">--no-clean</span></code> flag; we will handle discarding trips that fall outside of the combined time period in the merge step.</p>
+<p>Now run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gtfs_tripify merge 7_1_2019_7_stops.csv 7_2_2019_7_stops.csv stops.csv --to csv --clean
+</pre></div>
+</div>
+<p>Alternatively, you can run the following Python script (or modify it to your purposes), which does the same thing:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gtfs_tripify</span> <span class="kn">as</span> <span class="nn">gt</span>
 <span class="kn">from</span> <span class="nn">zipfile</span> <span class="kn">import</span> <span class="n">ZipFile</span>
 <span class="kn">import</span> <span class="nn">os</span>
 
+<span class="c1"># Update this value with the path to the GTFS-RT rollup on your local machine.</span>
 <span class="n">DOWNLOAD_URL</span> <span class="o">=</span> <span class="s1">&#39;~/Downloads/201906.zip&#39;</span>
 
 <span class="n">z</span> <span class="o">=</span> <span class="n">ZipFile</span><span class="p">(</span><span class="n">DOWNLOAD_URL</span><span class="p">)</span>
@@ -246,24 +245,32 @@
 <span class="n">z</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s1">&#39;201906012.zip&#39;</span><span class="p">)</span>
 
 <span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="c1"># filter out non-GTFS files</span>
 <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)):</span>
     <span class="k">if</span> <span class="s1">&#39;.py&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filename</span> <span class="ow">and</span> <span class="s1">&#39;gtfs_7_&#39;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
 
+<span class="c1"># build the logbooks</span>
 <span class="n">first_logbook</span><span class="p">,</span> <span class="n">first_logbook_timestamps</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">])</span>
 <span class="n">second_logbook</span><span class="p">,</span> <span class="n">second_logbook_timestamps</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">logify</span><span class="p">(</span><span class="n">messages</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">:])</span>
+
+<span class="c1"># merge the logbooks</span>
 <span class="n">logbook</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">merge_logbooks</span><span class="p">(</span>
     <span class="p">[(</span><span class="n">first_logbook</span><span class="p">,</span> <span class="n">first_logbook_timestamps</span><span class="p">),</span> <span class="p">(</span><span class="n">second_logbook</span><span class="p">,</span> <span class="n">second_logbook_timestamps</span><span class="p">)],</span>
     <span class="s1">&#39;logbook.csv&#39;</span>
 <span class="p">)</span>
+
+<span class="c1"># save to disk</span>
 <span class="n">gt</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">logbook</span><span class="p">,</span> <span class="s1">&#39;logbook.csv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>To learn more, see the section <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/additional_methods.html">Additional methods</a>.</p>
 </div>
 <div class="section" id="conclusion">
 <h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
-<p>That concludes this basic introduction to parsing MTA GTFS-RT data with <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code>. To see the full potential of this data stream in action, consider check out the <a class="reference external" href="https://www.nytimes.com/interactive/2019/07/08/upshot/nyc-subway-variability-calculator.html">NYC Subway Variability Calculator</a> built by the New York Times.</p>
+<p>That concludes this tutorial. The next section, <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html">Data analysis demo</a>, showcases this data in
+action.</p>
 </div>
 </div>
 

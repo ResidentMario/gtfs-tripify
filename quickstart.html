@@ -85,8 +85,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
 <li class="toctree-l1"><a class="reference internal" href="data_analysis_demo.html">Data analysis demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="additional_methods.html">Additional methods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parse_errors.html">Parse errors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="further_reading.html">Further reading</a></li>
 </ul>
 
@@ -154,31 +154,36 @@
             
   <div class="section" id="quickstart">
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h1>
-<p>In this section we’ll build a small sample train arrivals dataset using
-the <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> command-line tool.</p>
-<p>Begin by running the following to install this package on your local
-machine:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install gtfs_tripify
+<p><code class="docutils literal notranslate"><span class="pre">gtfs-tripify</span></code> is a CLI and Python library for transforming archival GTFS-Realtime messages into
+a tabular dataset of historical vehicle arrival and departure times. In this section of the
+documentation, I will build a quick demonstration dataset using the <code class="docutils literal notranslate"><span class="pre">gtfs-tripify</span></code> command-line
+interface.</p>
+<p>To begin, make sure that you have Python 3.6 or newer <a class="reference external" href="https://realpython.com/installing-python/">installed and active</a>. Then run the
+following <code class="docutils literal notranslate"><span class="pre">pip</span></code> package manager (comes included) command from your command line to install
+<code class="docutils literal notranslate"><span class="pre">gtfs-tripify</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install gtfs_tripify
 </pre></div>
 </div>
-<p>First we need to prepare our GTFS-Realtime feeds of interest.
-GTFS-Realtime is a highly compressed binary format encoded using a
-Google data encoding known as Protobuf. For the purposes of this demo,
-we’ll use some example data from the MTA archive.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir messages<span class="p">;</span> <span class="nb">cd</span> messages
-curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31
+<p>We will also need some data. For the purposes of this demo, we’ll use some example data from the
+MTA archive (this code snippet uses the <code class="docutils literal notranslate"><span class="pre">curl</span></code> Unix utility; Windows users, use a <code class="docutils literal notranslate"><span class="pre">curl</span></code>
+alternative or download these files by hand):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-31
 curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-36
 curl -O https://datamine-history.s3.amazonaws.com/gtfs-2014-09-17-09-41
 </pre></div>
 </div>
-<p>Each of these updates is a snapshot of a piece of the MTA subway system at
-a certain timestamp. By analyzing these snapshots for differences over time,
-it is possible to reconstruct all of the stops these trains made.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gtfs_tripify logify gtfs_messages/ stops.csv --to csv --no-clean
+<p>This will create three GTFS-Realtime files on your machine, each containing a snapshot of the
+state of the MTA system as of a certain date and time. We can turn these hard-to-read
+binary-encoded messages into a simple CSV table using the <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> CLI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gtfs_tripify logify ./ stops.csv --to csv --no-clean
 </pre></div>
 </div>
-<p>This outputs a <code class="docutils literal notranslate"><span class="pre">logbook</span></code> of individal trip <code class="docutils literal notranslate"><span class="pre">logs</span></code>. This looks something
-like this:</p>
+<p>This command tells <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> to “logify” (transform into a tabular <strong>trip log</strong>) every
+GTFS-Realtime message in the current folder and output the result to <code class="docutils literal notranslate"><span class="pre">stops.csv</span></code>. <code class="docutils literal notranslate"><span class="pre">--to</span> <span class="pre">csv</span></code>
+instructs <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> to output the data in a CSV format, and <code class="docutils literal notranslate"><span class="pre">--no-clean</span></code> instructs
+<code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> not to drop partial trips from the file (we are using just fifteen minutes of
+data in this demo).</p>
+<p>The resulting file looks something like this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trip_id</span><span class="p">,</span><span class="n">route_id</span><span class="p">,</span><span class="n">action</span><span class="p">,</span><span class="n">minimum_time</span><span class="p">,</span><span class="n">maximum_time</span><span class="p">,</span><span class="n">stop_id</span><span class="p">,</span><span class="n">latest_information_time</span><span class="p">,</span><span class="n">unique_trip_id</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440299.0</span><span class="p">,</span><span class="mf">1559440695.0</span><span class="p">,</span><span class="mi">726</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440315</span>
 <span class="mi">131750</span><span class="n">_7</span><span class="o">..</span><span class="n">N</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="n">STOPPED_OR_SKIPPED</span><span class="p">,</span><span class="mf">1559440846.0</span><span class="p">,</span><span class="mf">1559440860.0</span><span class="p">,</span><span class="mi">725</span><span class="n">N</span><span class="p">,</span><span class="mi">1559440860</span>
@@ -194,17 +199,21 @@ like this:</p>
 <p>This dataset has the following schema:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">trip_id</span></code>: The ID assigned to the trip in the GTFS-Realtime record.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">route_id</span></code>: The ID of the route. In New York City these are easy to read: 2 means this is a number 2 train.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">stop_id</span></code>: The ID assigned to the stop in question.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">action</span></code>: The action that the given train took at the given stop. One of <code class="docutils literal notranslate"><span class="pre">STOPPED_AT</span></code>, <code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code>, or <code class="docutils literal notranslate"><span class="pre">EN_ROUTE_TO</span></code> (the latter only occurs if the trip was still in progress as of the last message in the feed list).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">minimum_time</span></code>: The minimum time at which the train pulled into the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. This time is a <a class="reference external" href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">maximum_time</span></code>: The maximum time at which the train pulled out of the station. May be <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. Also a Unix timestamp.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">latest_information_time</span></code>: The timestamp of the most recent GTFS-Realtime data feed containing information pertinent to this record. Also a Unix timestamp.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">route_id</span></code>: The ID of the route (e.g. <code class="docutils literal notranslate"><span class="pre">2</span></code> train, <code class="docutils literal notranslate"><span class="pre">3</span></code> train, etcetera).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stop_id</span></code>: The ID assigned to the stop in question. To resolve this value to stop names,
+please see the GTFS file for this transit system. The MTA for example hosts this file at
+<a class="reference external" href="https://api.mta.info/">https://api.mta.info/</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">action</span></code>: The action that the given train took at the given stop. One of <code class="docutils literal notranslate"><span class="pre">STOPPED_AT</span></code>,
+<code class="docutils literal notranslate"><span class="pre">STOPPED_OR_SKIPPED</span></code>, or <code class="docutils literal notranslate"><span class="pre">EN_ROUTE_TO</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minimum_time</span></code>: The minimum arrival time. <a class="reference external" href="https://en.wikipedia.org/wiki/Unix_time">Unix timestamp</a>. If the first snapshot included
+in the feed parse has this vehicle already at a station, this value will be set to null.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maximum_time</span></code>: The maximum departure time. If the trip cuts out without a vehicle having
+arrived at some of its stations this value will be set to null.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">latest_information_time</span></code>: The timestamp of the most recent GTFS-Realtime data feed
+containing information pertinent to this record. Unix timestamp.</p></li>
 </ul>
-<p>That concludes this brisk introduction to the <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> library. For a more detailed
-demonstration of <code class="docutils literal notranslate"><span class="pre">gtfs_tripify</span></code> features using the Python library, see see the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">Tutorial</a>
-section. For a demonstratory analysis of one day’s worth of data, see the section
-<a class="reference external" href="https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html">Data analysis demo</a>.</p>
+<p>That concludes this brisk introduction. For a more detailed demo see the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/tutorial.html">tutorial</a>. To
+get a better idea of what you can do with this data, see the <a class="reference external" href="https://residentmario.github.io/gtfs-tripify/data_analysis_demo.html">data analysis demo</a>.</p>
 </div>
 
 
