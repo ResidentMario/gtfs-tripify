@@ -13,7 +13,7 @@ def cli():
 @click.command()
 @click.argument('inpath')
 @click.argument('outpath')
-@click.option('--no-clean', is_flag=True,
+@click.option('--no-clean', is_flag=True, default=False,
               help='Enable or disable cleaning up the logbook before writing it to disk.')
 @click.option('--include-timestamp-log', is_flag=True,
               help='Write the timestamp log to disk. Timestamps are used for merging logbooks.')
@@ -71,7 +71,7 @@ def logify(inpath, outpath, no_clean, include_timestamp_log, include_error_log, 
 @click.argument('l_fp_1')
 @click.argument('l_fp_2')
 @click.argument('outpath')
-@click.option('--no-clean', is_flag=True,
+@click.option('--no-clean', is_flag=True, default=False,
               help='Enable or disable cleaning up the logbook before writing it to disk.')
 @click.option('--include-timestamp-log', is_flag=True,
               help='Write the timestamp log to disk. Timestamps are used for merging logbooks.')

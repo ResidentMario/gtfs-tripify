@@ -62,5 +62,6 @@ class TestLogbooksToCSV(unittest.TestCase):
 
         assert result.keys() == self.logbook.keys()
         example_uid = list(result.keys())[0]
-        assert result[example_uid].equals(self.logbook[example_uid])
+        assert result[example_uid].reset_index(drop=True)\
+            .equals(self.logbook[example_uid].reset_index(drop=True))
         os.remove('temp.csv')
