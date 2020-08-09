@@ -7,3 +7,5 @@ Many major transit municipalities in the United States public realtime informati
 ![](./imgs/example.png)
 
 To learn more about `gtfs_tripify` [check out the docs](https://residentmario.github.io/gtfs-tripify/index.html).
+
+[New book on GTFS](https://www.amazon.in/BetterBus-Implementing-Tracking-GTFS-data/dp/1647604494) available in kindle and paperback options in most countries.
